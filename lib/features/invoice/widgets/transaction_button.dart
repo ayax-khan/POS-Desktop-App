@@ -184,8 +184,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               SizedBox(height: AppSpacing.medium(context)),
               Expanded(
                 child: SingleChildScrollView(
-                  scrollDirection:
-                      Axis.horizontal, // Ensure horizontal scrolling
+                  scrollDirection: Axis.vertical, // Ensure vertical scrolling
                   child: SizedBox(
                     width: AppSpacing.width(
                       context,
@@ -193,7 +192,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                     ), // Set explicit width for the DataTable
                     child: DataTable(
                       border: TableBorder.all(
-                        color: Colors.grey,
+                        color: Colors.black,
                       ), // Add all borders
                       columnSpacing: AppSpacing.small(context),
                       // Adjust minWidth to increase table width
@@ -203,6 +202,12 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                       showCheckboxColumn: false,
                       headingRowHeight: 56.0,
                       columns: [
+                        DataColumn(
+                          label: Text(
+                            'Sr',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
                         DataColumn(
                           label: Text(
                             'Order ID',
@@ -241,7 +246,9 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                         ),
                       ],
                       rows:
-                          _transactions.map((transaction) {
+                          _transactions.asMap().entries.map((entry) {
+                            final index = entry.key + 1;
+                            final transaction = entry.value;
                             // Get the full order to access templateId
                             final order = HiveService.getOrders()
                                 .cast<Order?>()
@@ -255,6 +262,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                             return DataRow(
                               key: ValueKey(transaction['orderId']),
                               cells: [
+                                DataCell(Text(index.toString())),
                                 DataCell(Text(transaction['orderId'] ?? 'N/A')),
                                 DataCell(
                                   Text(transaction['customerName'] ?? 'Guest'),
