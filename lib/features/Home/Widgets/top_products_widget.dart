@@ -84,6 +84,8 @@ class TopProductsWidget extends StatelessWidget {
               children: [
                 Text(
                   product.name,
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
                   style: const TextStyle(
                     fontWeight: FontWeight.w600,
                     fontSize: 14,
@@ -91,14 +93,20 @@ class TopProductsWidget extends StatelessWidget {
                 ),
                 Text(
                   '${product.quantity} sold',
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
                   style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
                 ),
               ],
             ),
           ),
-          Text(
-            '\${product.revenue.toStringAsFixed(0)}',
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+          Flexible(
+            child: Text(
+              '\$${product.revenue.toStringAsFixed(0)}',
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+            ),
           ),
         ],
       ),

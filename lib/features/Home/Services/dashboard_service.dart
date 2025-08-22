@@ -7,25 +7,22 @@ import 'package:pos/features/Customer/Models/customer_model.dart';
 
 class DashboardService {
   static final DashboardService _instance = DashboardService._internal();
-  late final Box<DashboardData> _dashboardBox;
-  late final Box<Order> _invoiceBox;
-  late final Box<Customer> _customerBox;
-  late final Box<Product> _productBox;
-  late final Box _transactionBox;
+  factory DashboardService() => _instance;
+  DashboardService._internal();
 
-  factory DashboardService() {
-    return _instance;
-  }
-  DashboardService._internal() {
-    _initialize();
-  }
+  late Box<DashboardData> _dashboardBox;
+  late Box<Order> _invoiceBox;
+  late Box<Customer> _customerBox;
+  late Box<Product> _productBox;
+  late Box _transactionBox;
 
-  Future<void> _initialize() async {
+  /// ✅ Pehle constructor me call ho raha tha, ab explicit initialize use hoga
+  Future<void> initialize() async {
     _dashboardBox = await HiveService.openDashboardBox();
-    _invoiceBox = Hive.box<Order>('ordersBox');
-    _customerBox = Hive.box<Customer>('customerBox');
-    _productBox = Hive.box<Product>('posBox');
-    _transactionBox = Hive.box('transactionsBox');
+    _invoiceBox = await Hive.openBox<Order>('ordersBox');
+    _customerBox = await Hive.openBox<Customer>('customerBox');
+    _productBox = await Hive.openBox<Product>('posBox');
+    _transactionBox = await Hive.openBox('transactionsBox');
   }
 
   Future<void> loadDashboardData() async {
@@ -69,19 +66,6 @@ class DashboardService {
     }
     return total;
   }
-  //   static Box<Product> get productBox {
-  //   if (_productsBox == null) {
-  //     throw Exception('Product box not initialized');
-  //   }
-  //   return _productsBox!;
-  // }
-
-  // static Box get transactionsBox {
-  //   if (_transactionsBox == null) {
-  //     throw Exception('Transactions box not initialized');
-  //   }
-  //   return _transactionsBox!;
-  // }
 
   int _calculateLowStockItems() {
     int count = 0;
@@ -255,11 +239,10 @@ class DashboardService {
           (t) => RecentTransaction(
             id: t['orderId'] as String,
             customerName: t['customerName'] as String,
-            amount: t['total'] as double,
-            status: 'Completed', // Default, as transactionsBox lacks status
+            amount: (t['total'] as num).toDouble(),
+            status: 'Completed', // Default (transactionsBox me status nahi hai)
             date: DateTime.parse(t['date'] as String),
-            paymentMethod:
-                'Unknown', // Adjust if paymentMethod is stored elsewhere
+            paymentMethod: 'Unknown', // Agar paymentMethod store nahi hai
           ),
         )
         .toList();
