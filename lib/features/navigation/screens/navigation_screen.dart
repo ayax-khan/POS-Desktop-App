@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:pos/core/constraints/colors.dart';
 import 'package:pos/core/constraints/spacing.dart';
+import 'package:pos/core/services/navigation_service.dart';
+import 'package:pos/core/constants/navigation_constants.dart';
 import '../../home/screens/home_screen.dart';
 import '../../Products/Screens/products_screen.dart';
 import '../../customer/screens/customer_screen.dart';
@@ -10,6 +12,10 @@ import '../../settings/screens/settings_screen.dart';
 import '../widgets/app_bar_first_row.dart';
 import '../widgets/app_bar_second_row.dart';
 
+/// Represents a navigation item in the sidebar
+/// 
+/// Contains all the necessary information to display and handle
+/// navigation items in the sidebar menu.
 class NavigationItem {
   final IconData icon;
   final IconData selectedIcon;
@@ -34,70 +40,93 @@ class NavigationScreen extends StatefulWidget {
 class _NavigationScreenState extends State<NavigationScreen> {
   int _selectedIndex = 0;
   Widget _currentScreen = const HomeScreen();
+  final NavigationService _navigationService = NavigationService();
 
   final List<NavigationItem> _navigationItems = [
     NavigationItem(
       icon: Icons.dashboard_outlined,
       selectedIcon: Icons.dashboard,
       label: 'Home',
-      key: 'Home',
+      key: NavigationConstants.home,
     ),
     NavigationItem(
       icon: Icons.inventory_2_outlined,
       selectedIcon: Icons.inventory_2,
       label: 'Products',
-      key: 'Products',
+      key: NavigationConstants.products,
     ),
     NavigationItem(
       icon: Icons.people_outline,
       selectedIcon: Icons.people,
       label: 'Customers',
-      key: 'Customer',
+      key: NavigationConstants.customers,
     ),
     NavigationItem(
       icon: Icons.receipt_long_outlined,
       selectedIcon: Icons.receipt_long,
       label: 'Invoices',
-      key: 'Invoice',
+      key: NavigationConstants.invoice,
     ),
     NavigationItem(
       icon: Icons.analytics_outlined,
       selectedIcon: Icons.analytics,
       label: 'Reports',
-      key: 'Reports',
+      key: NavigationConstants.reports,
     ),
     NavigationItem(
       icon: Icons.settings_outlined,
       selectedIcon: Icons.settings,
       label: 'Settings',
-      key: 'Settings',
+      key: NavigationConstants.settings,
     ),
   ];
 
+  @override
+  void initState() {
+    super.initState();
+    // Set up navigation service callback
+    _navigationService.setNavigationCallback(_selectFeature);
+  }
+
+  /// Handle navigation to a specific feature
+  /// 
+  /// Updates the selected index and current screen based on the feature key.
+  /// Uses NavigationConstants to ensure consistent navigation keys.
+  /// 
+  /// [feature] - Navigation key from NavigationConstants
   void _selectFeature(String feature) {
+    if (!NavigationConstants.isValidNavigationKey(feature)) {
+      debugPrint('NavigationScreen: Invalid navigation key: $feature');
+      return;
+    }
+
     setState(() {
       final index = _navigationItems.indexWhere((item) => item.key == feature);
       if (index != -1) {
         _selectedIndex = index;
       }
+      
       switch (feature) {
-        case 'Home':
+        case NavigationConstants.home:
           _currentScreen = const HomeScreen();
           break;
-        case 'Products':
+        case NavigationConstants.products:
           _currentScreen = const ProductsScreen();
           break;
-        case 'Customer':
+        case NavigationConstants.customers:
           _currentScreen = const CustomerScreen();
           break;
-        case 'Invoice':
+        case NavigationConstants.invoice:
           _currentScreen = const InvoiceScreen();
           break;
-        case 'Reports':
+        case NavigationConstants.reports:
           _currentScreen = const ReportsScreen();
           break;
-        case 'Settings':
+        case NavigationConstants.settings:
           _currentScreen = const SettingsScreen();
+          break;
+        default:
+          debugPrint('NavigationScreen: Unhandled navigation key: $feature');
           break;
       }
     });

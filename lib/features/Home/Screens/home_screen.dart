@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:pos/core/services/navigation_service.dart';
 import 'package:pos/features/Home/Widgets/dashboard_card.dart';
 import 'package:pos/features/Home/Widgets/sales_chart.dart';
 import 'package:pos/features/Home/Widgets/recent_transactions_table.dart';
@@ -17,6 +18,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final DashboardService _dashboardService = DashboardService();
+  final NavigationService _navigationService = NavigationService();
   late ScrollController _scrollController;
   late Future<void> _initFuture;
 
@@ -101,10 +103,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     sliver: SliverList(
                       delegate: SliverChildListDelegate([
                         QuickActionsWidget(
-                          onNewSale: () => _navigateToSales(),
-                          onAddProduct: () => _navigateToProducts(),
-                          onViewReports: () => _navigateToReports(),
-                          onManageCustomers: () => _navigateToCustomers(),
+                          onNewSale: () => _navigationService.navigateToNewSale(),
+                          onAddProduct: () => _navigationService.navigateToAddProduct(),
+                          onViewReports: () => _navigationService.navigateToViewReports(),
+                          onManageCustomers: () => _navigationService.navigateToManageCustomers(),
                         ),
                         const SizedBox(height: 24),
                         Row(
@@ -199,9 +201,4 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-
-  void _navigateToSales() {}
-  void _navigateToProducts() {}
-  void _navigateToReports() {}
-  void _navigateToCustomers() {}
 }
