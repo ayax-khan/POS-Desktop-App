@@ -6,7 +6,9 @@ import 'package:flutter/foundation.dart';
 import 'package:pos/features/Customer/Models/customer_model.dart';
 import 'package:pos/features/auth/models/user_model.dart';
 import 'package:pos/features/auth/models/license_model.dart';
-import 'package:pos/features/Home/Models/dashboard_data.dart';
+import 'package:pos/features/auth/models/business_info_model.dart';
+// ...existing code...
+import 'package:pos/features/Home/Models/dashboard_data.dart'; // Add this import
 
 class HiveService {
   static const String locationBoxName = 'locationBox';
@@ -18,9 +20,7 @@ class HiveService {
   static const String customerBoxName = 'customerBox';
   static const String userBoxName = 'userBox';
   static const String licenseBoxName = 'licenseBox';
-  static const String dashboardBoxName = 'dashboard';
-  static const String calculatorHistoryBoxName =
-      'calculator_history'; // Add this
+  static const String dashboardBoxName = 'dashboard'; // Add this
 
   static Box<Product>? _productsBox;
   static Box<Order>? _ordersBox;
@@ -30,34 +30,34 @@ class HiveService {
 
   // Add these static methods
   static Future<dynamic> openDashboardBox() async {
-    if (Hive.isBoxOpen(dashboardBoxName)) {
-      return Hive.box<DashboardData>(dashboardBoxName);
+    if (Hive.isBoxOpen('dashboard')) {
+      return Hive.box<DashboardData>('dashboard');
     }
-    return await Hive.openBox<DashboardData>(dashboardBoxName);
+    return await Hive.openBox<DashboardData>('dashboard');
   }
 
   static Future<dynamic> openOrdersBox() async {
-    if (!Hive.isBoxOpen(orderBoxName)) {
-      return await Hive.openBox<Order>(orderBoxName);
+    if (!Hive.isBoxOpen('ordersBox')) {
+      return await Hive.openBox<Order>('ordersBox');
     }
-    return Hive.box<Order>(orderBoxName);
+    return Hive.box<Order>('ordersBox');
   }
 
   static Future<dynamic> openCustomerBox() async {
-    if (!Hive.isBoxOpen(customerBoxName)) {
-      return await Hive.openBox<Customer>(customerBoxName);
+    if (!Hive.isBoxOpen('customerBox')) {
+      return await Hive.openBox<Customer>('customerBox');
     }
-    return Hive.box<Customer>(customerBoxName);
+    return Hive.box<Customer>('customerBox');
   }
 
   static Future<dynamic> openProductBox() async {
-    if (!Hive.isBoxOpen(productBoxName)) {
-      return await Hive.openBox<Product>(productBoxName);
+    if (!Hive.isBoxOpen('posBox')) {
+      return await Hive.openBox<Product>('posBox');
     }
-    return Hive.box<Product>(productBoxName);
+    return Hive.box<Product>('posBox');
   }
 
-  // Modify the init method to open calculator history box and register adapter
+  // Modify the init method to open these boxes
   static Future<void> init() async {
     final appDocumentDir =
         await path_provider.getApplicationDocumentsDirectory();
@@ -69,14 +69,15 @@ class HiveService {
     Hive.registerAdapter(OrderAdapter()); // typeId: 2
     Hive.registerAdapter(UserModelAdapter()); // typeId: 3
     Hive.registerAdapter(LicenseModelAdapter()); // typeId: 4
+    Hive.registerAdapter(
+      BusinessInfoModelAdapter(),
+    ); // register business info adapter
 
     // Dashboard data adapters
     Hive.registerAdapter(DashboardDataAdapter());
     Hive.registerAdapter(SalesDataAdapter());
     Hive.registerAdapter(TopProductAdapter());
     Hive.registerAdapter(RecentTransactionAdapter());
-
-    // Calculator history adapter (typeId: 10)
 
     // Open all boxes
     _productsBox = await openProductBox();

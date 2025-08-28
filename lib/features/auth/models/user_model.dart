@@ -8,22 +8,26 @@ class UserModel {
   final String name;
 
   @HiveField(1)
-  final String shopAddress;
+  final String email;
 
   @HiveField(2)
-  final String phoneNumber;
+  final String shopAddress;
 
   @HiveField(3)
-  final String? profilePicturePath;
+  final String phoneNumber;
 
   @HiveField(4)
-  final DateTime registrationDate;
+  final String? profilePicturePath;
 
   @HiveField(5)
+  final DateTime registrationDate;
+
+  @HiveField(6)
   final bool isRegistered;
 
   UserModel({
     required this.name,
+    required this.email,
     required this.shopAddress,
     required this.phoneNumber,
     this.profilePicturePath,

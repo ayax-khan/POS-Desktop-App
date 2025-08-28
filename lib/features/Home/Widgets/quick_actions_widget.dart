@@ -1,5 +1,4 @@
 // lib/features/Home/widgets/quick_actions_widget.dart
-import 'package:animated_icon/animated_icon.dart';
 import 'package:flutter/material.dart';
 
 class QuickActionsWidget extends StatelessWidget {
@@ -52,8 +51,7 @@ class QuickActionsWidget extends StatelessWidget {
             children: [
               Expanded(
                 child: _buildActionButton(
-                  animateIcon: AnimateIcons.file,
-                  gifPath: "assets/icons/sale.gif",
+                  icon: Icons.point_of_sale,
                   label: 'New Sale',
                   onTap: onNewSale,
                 ),
@@ -61,8 +59,7 @@ class QuickActionsWidget extends StatelessWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: _buildActionButton(
-                  animateIcon: AnimateIcons.calculator,
-                  gifPath: "assets/icons/add_prod.gif",
+                  icon: Icons.add_box_outlined,
                   label: 'Add Product',
                   onTap: onAddProduct,
                 ),
@@ -70,8 +67,7 @@ class QuickActionsWidget extends StatelessWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: _buildActionButton(
-                  animateIcon: AnimateIcons.list,
-                  gifPath: "assets/icons/reports.gif",
+                  icon: Icons.analytics_outlined,
                   label: 'View Reports',
                   onTap: onViewReports,
                 ),
@@ -79,8 +75,7 @@ class QuickActionsWidget extends StatelessWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: _buildActionButton(
-                  animateIcon: AnimateIcons.confused,
-                  gifPath: "assets/icons/customers.gif",
+                  icon: Icons.people_outline,
                   label: 'Customers',
                   onTap: onManageCustomers,
                 ),
@@ -92,10 +87,8 @@ class QuickActionsWidget extends StatelessWidget {
     );
   }
 
-  /// Ab ye button ya to GIF show karega ya AnimatedIcon
   Widget _buildActionButton({
-    AnimateIcons? animateIcon,
-    String? gifPath,
+    required IconData icon,
     required String label,
     required VoidCallback onTap,
   }) {
@@ -106,20 +99,10 @@ class QuickActionsWidget extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+          padding: const EdgeInsets.symmetric(vertical: 16),
           child: Column(
             children: [
-              if (gifPath != null)
-                Image.asset(gifPath, height: 40, width: 40, fit: BoxFit.cover)
-              else if (animateIcon != null)
-                AnimateIcon(
-                  onTap: onTap,
-                  iconType: IconType.continueAnimation,
-                  height: 30,
-                  width: 30,
-                  color: Colors.white,
-                  animateIcon: animateIcon,
-                ),
+              Icon(icon, color: Colors.white, size: 28),
               const SizedBox(height: 8),
               Text(
                 label,

@@ -1,4 +1,3 @@
-import 'package:animated_icon/animated_icon.dart';
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:pos/core/services/navigation_service.dart';
@@ -82,13 +81,19 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                     actions: [
-                      AnimateIcon(
-                        onTap: () async {
+                      IconButton(
+                        icon: const Icon(Icons.refresh, color: Colors.black87),
+                        onPressed: () async {
                           await _dashboardService.refreshData();
                           setState(() {});
                         },
-                        iconType: IconType.continueAnimation,
-                        animateIcon: AnimateIcons.refresh,
+                      ),
+                      IconButton(
+                        icon: const Icon(
+                          Icons.notifications_outlined,
+                          color: Colors.black87,
+                        ),
+                        onPressed: () {},
                       ),
                       const SizedBox(width: 16),
                     ],
@@ -98,16 +103,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     sliver: SliverList(
                       delegate: SliverChildListDelegate([
                         QuickActionsWidget(
-                          onNewSale:
-                              () => _navigationService.navigateToNewSale(),
-                          onAddProduct:
-                              () => _navigationService.navigateToAddProduct(),
-                          onViewReports:
-                              () => _navigationService.navigateToViewReports(),
-                          onManageCustomers:
-                              () =>
-                                  _navigationService
-                                      .navigateToManageCustomers(),
+                          onNewSale: () => _navigationService.navigateToNewSale(),
+                          onAddProduct: () => _navigationService.navigateToAddProduct(),
+                          onViewReports: () => _navigationService.navigateToViewReports(),
+                          onManageCustomers: () => _navigationService.navigateToManageCustomers(),
                         ),
                         const SizedBox(height: 24),
                         Row(

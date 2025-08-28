@@ -1,12 +1,15 @@
 import 'package:hive/hive.dart';
 import 'package:pos/features/auth/models/user_model.dart';
 import 'package:pos/features/auth/models/license_model.dart';
+import 'package:pos/features/auth/models/business_info_model.dart';
 
 class AuthService {
   static const String _userBoxName = 'user_box';
   static const String _licenseBoxName = 'license_box';
+  static const String _businessInfoBoxName = 'business_info_box';
   static const String _userKey = 'current_user';
   static const String _licenseKey = 'current_license';
+  static const String _businessInfoKey = 'current_business_info';
 
   // Predefined license codes with their durations (in days)
   static const Map<String, int> _validLicenseCodes = {
@@ -48,6 +51,10 @@ class AuthService {
     return await Hive.openBox<LicenseModel>(_licenseBoxName);
   }
 
+  Future<Box<BusinessInfoModel>> _getBusinessInfoBox() async {
+    return await Hive.openBox<BusinessInfoModel>(_businessInfoBoxName);
+  }
+
   Future<bool> isUserRegistered() async {
     try {
       final box = await _getUserBox();
@@ -69,6 +76,7 @@ class AuthService {
 
   Future<void> registerUser({
     required String name,
+    required String email,
     required String shopAddress,
     required String phoneNumber,
     String? profilePicturePath,
@@ -77,6 +85,7 @@ class AuthService {
       final box = await _getUserBox();
       final user = UserModel(
         name: name,
+        email: email,
         shopAddress: shopAddress,
         phoneNumber: phoneNumber,
         profilePicturePath: profilePicturePath,
@@ -228,9 +237,13 @@ class AuthService {
     }
   }
 
-  // Method to check license status periodically
-  Future<bool> checkLicenseStatus() async {
-    return await hasValidLicense();
+  Future<void> updateUser(UserModel user) async {
+    try {
+      final box = await _getUserBox();
+      await box.put(_userKey, user);
+    } catch (e) {
+      throw Exception("Failed to update user: $e");
+    }
   }
 
   // Debug method to inspect current license
@@ -240,5 +253,28 @@ class AuthService {
     print(
       'Current license: $license, isExpired: ${license?.isExpired}, isActive: ${license?.isActive}',
     );
+  }
+
+  // Method to check license status periodically
+  Future<bool> checkLicenseStatus() async {
+    return await hasValidLicense();
+  }
+
+  Future<void> saveBusinessInfo(BusinessInfoModel info) async {
+    try {
+      final box = await _getBusinessInfoBox();
+      await box.put(_businessInfoKey, info);
+    } catch (e) {
+      throw Exception("Failed to save business info: $e");
+    }
+  }
+
+  Future<BusinessInfoModel?> getBusinessInfo() async {
+    try {
+      final box = await _getBusinessInfoBox();
+      return box.get(_businessInfoKey);
+    } catch (e) {
+      return null;
+    }
   }
 }

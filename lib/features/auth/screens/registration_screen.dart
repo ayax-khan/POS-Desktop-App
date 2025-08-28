@@ -13,6 +13,7 @@ class RegistrationScreen extends StatefulWidget {
 class _RegistrationScreenState extends State<RegistrationScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
+  final _emailController = TextEditingController();
   final _addressController = TextEditingController();
   final _phoneController = TextEditingController();
   
@@ -22,6 +23,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   @override
   void dispose() {
     _nameController.dispose();
+    _emailController.dispose();
     _addressController.dispose();
     _phoneController.dispose();
     super.dispose();
@@ -57,6 +59,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       final authService = AuthService();
       await authService.registerUser(
         name: _nameController.text.trim(),
+        email: _emailController.text.trim(),
         shopAddress: _addressController.text.trim(),
         phoneNumber: _phoneController.text.trim(),
         profilePicturePath: _profilePicturePath,
@@ -195,6 +198,31 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
                             return 'Please enter your name';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Email Field
+                      TextFormField(
+                        controller: _emailController,
+                        keyboardType: TextInputType.emailAddress,
+                        decoration: InputDecoration(
+                          labelText: 'Email *',
+                          prefixIcon: const Icon(Icons.email),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          filled: true,
+                          fillColor: Colors.grey[50],
+                        ),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Please enter your email';
+                          }
+                          if (!RegExp(r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+").hasMatch(value)) {
+                            return 'Please enter a valid email address';
                           }
                           return null;
                         },
