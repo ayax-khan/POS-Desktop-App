@@ -30,9 +30,20 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
   @override
   void initState() {
     super.initState();
-    _selectedTemplateId = widget.selectedTemplate; // Initialize with selected template
+    _selectedTemplateId = widget.selectedTemplate ?? 0; // Initialize with selected template or default to 0
     _loadDraftOrder();
     _generateOrderNumber();
+  }
+
+  @override
+  void didUpdateWidget(CreateOrderScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Update selected template when widget updates
+    if (oldWidget.selectedTemplate != widget.selectedTemplate) {
+      setState(() {
+        _selectedTemplateId = widget.selectedTemplate ?? 0;
+      });
+    }
   }
 
   @override

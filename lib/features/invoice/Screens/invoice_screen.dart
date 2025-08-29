@@ -16,13 +16,14 @@ class InvoiceScreen extends StatefulWidget {
 
 class _InvoiceScreenState extends State<InvoiceScreen> {
   int _selectedIndex = 0; // Default to Create Order screen (index 0)
-  int? _selectedTemplate;
+  int? _selectedTemplate = 0; // Set default template to Classic (index 0)
 
   void _onButtonTapped(int index) {
     setState(() {
       _selectedIndex = index;
       if (index != 2) {
-        _selectedTemplate = null; // Reset template when switching away
+        // Don't reset template when switching away from template screen
+        // _selectedTemplate = null; 
       }
     });
   }
@@ -30,6 +31,8 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
   void _selectTemplate(int templateIndex) {
     setState(() {
       _selectedTemplate = templateIndex;
+      // Automatically switch back to Create Order screen after template selection
+      _selectedIndex = 0;
     });
   }
 

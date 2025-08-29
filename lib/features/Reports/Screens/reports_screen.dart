@@ -9,7 +9,6 @@ import 'package:pos/features/Reports/Widgets/metric_card.dart';
 import 'package:pos/features/Reports/Widgets/revenue_chart.dart';
 import 'package:pos/features/Reports/Widgets/top_customers_widget.dart';
 import 'package:pos/features/Reports/Widgets/top_products_widget.dart';
-import 'package:pos/features/Reports/Widgets/hourly_revenue_widget.dart';
 import 'package:pos/features/Reports/Widgets/sales_insights_widget.dart';
 
 class ReportsScreen extends StatefulWidget {
@@ -24,14 +23,15 @@ class _ReportsScreenState extends State<ReportsScreen> {
   String _selectedComparison = 'By product';
   bool _isLoading = true;
   RevenueData? _revenueData;
+  DateTime? _customStartDate;
+  DateTime? _customEndDate;
 
   final List<String> _periods = [
     'Today',
     'Yesterday',
-    'This Week',
     'Last Week',
-    'This Month',
     'Last Month',
+    'Custom Date',
   ];
   final List<String> _comparisons = [
     'By product',
@@ -64,6 +64,26 @@ class _ReportsScreenState extends State<ReportsScreen> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Error loading data: $e')));
+    }
+  }
+
+  Future<void> _selectCustomDateRange() async {
+    final DateTimeRange? picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+      initialDateRange: _customStartDate != null && _customEndDate != null
+          ? DateTimeRange(start: _customStartDate!, end: _customEndDate!)
+          : null,
+    );
+
+    if (picked != null) {
+      setState(() {
+        _customStartDate = picked.start;
+        _customEndDate = picked.end;
+        _selectedPeriod = 'Custom Date';
+      });
+      _loadRevenueData();
     }
   }
 
@@ -179,11 +199,16 @@ class _ReportsScreenState extends State<ReportsScreen> {
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: value,
-          items:
-              items.map((String item) {
-                return DropdownMenuItem<String>(value: item, child: Text(item));
-              }).toList(),
-          onChanged: onChanged,
+          items: items.map((String item) {
+            return DropdownMenuItem<String>(value: item, child: Text(item));
+          }).toList(),
+          onChanged: (String? newValue) {
+            if (newValue == 'Custom Date') {
+              _selectCustomDateRange();
+            } else {
+              onChanged(newValue);
+            }
+          },
         ),
       ),
     );
@@ -206,6 +231,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
         Row(
           children: [
             Expanded(
+              flex: 2,
               child: MetricCard(
                 title: 'Revenue',
                 value: 'PKR${_revenueData!.totalRevenue.toStringAsFixed(2)}',
@@ -216,26 +242,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
             ),
             SizedBox(width: AppSpacing.medium(context)),
             Expanded(
-              child: MetricCard(
-                title: 'Products',
-                value: _revenueData!.totalProducts.toString(),
-                previousDayChange: _revenueData!.productsPreviousDayChange,
-                weekOverWeekChange: _revenueData!.productsWeekOverWeekChange,
-                showCheckIcon: true,
-              ),
-            ),
-            SizedBox(width: AppSpacing.medium(context)),
-            Expanded(
-              child: MetricCard(
-                title: 'Customers',
-                value: _revenueData!.totalCustomers.toString(),
-                previousDayChange: _revenueData!.customersPreviousDayChange,
-                weekOverWeekChange: _revenueData!.customersWeekOverWeekChange,
-                showCheckIcon: true,
-              ),
-            ),
-            SizedBox(width: AppSpacing.medium(context)),
-            Expanded(
+              flex: 2,
               child: MetricCard(
                 title: 'Returns',
                 value: '${_revenueData!.returnRate.toStringAsFixed(2)}%',
@@ -244,6 +251,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 showCheckIcon: false,
               ),
             ),
+            Expanded(flex: 1, child: SizedBox()), // Spacer to balance layout
           ],
         ),
       ],
@@ -271,8 +279,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
         Expanded(
           child: Column(
             children: [
-              HourlyRevenueWidget(hourlyData: _revenueData!.hourlyRevenue),
-              SizedBox(height: AppSpacing.large(context)),
               SalesInsightsWidget(
                 bestSalesDay: _revenueData!.bestSalesDay,
                 peakSaleHour: _revenueData!.peakSaleHour,

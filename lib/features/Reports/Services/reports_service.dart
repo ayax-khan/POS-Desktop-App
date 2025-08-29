@@ -130,14 +130,13 @@ class ReportsService {
         return DateTime(now.year, now.month, now.day);
       case 'Yesterday':
         return DateTime(now.year, now.month, now.day - 1);
-      case 'This Week':
-        return now.subtract(Duration(days: now.weekday - 1));
       case 'Last Week':
-        return now.subtract(Duration(days: now.weekday + 6));
-      case 'This Month':
-        return DateTime(now.year, now.month, 1);
+        return now.subtract(Duration(days: 7));
       case 'Last Month':
-        return DateTime(now.year, now.month - 1, 1);
+        return DateTime(now.year, now.month - 1, now.day);
+      case 'Custom Date':
+        // For custom date, return last 30 days as default
+        return now.subtract(Duration(days: 30));
       default:
         return DateTime(now.year, now.month, now.day - 1);
     }
