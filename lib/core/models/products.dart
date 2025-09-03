@@ -58,6 +58,9 @@ class Product extends HiveObject {
   @HiveField(17)
   bool favorite;
 
+  @HiveField(18) // 🔹 New field
+  DateTime? updatedAt;
+
   Product({
     required this.id,
     required this.name,
@@ -77,6 +80,7 @@ class Product extends HiveObject {
     this.discount,
     this.reorderLevel,
     this.favorite = false,
+    this.updatedAt, // 🔹 Add to constructor
   });
 
   Product copyWith({
@@ -98,6 +102,7 @@ class Product extends HiveObject {
     double? discount,
     int? reorderLevel,
     bool? favorite,
+    DateTime? updatedAt, // 🔹 Add here
   }) {
     return Product(
       id: id ?? this.id,
@@ -118,6 +123,7 @@ class Product extends HiveObject {
       discount: discount ?? this.discount,
       reorderLevel: reorderLevel ?? this.reorderLevel,
       favorite: favorite ?? this.favorite,
+      updatedAt: updatedAt ?? this.updatedAt, // 🔹 Assign here
     );
   }
 }

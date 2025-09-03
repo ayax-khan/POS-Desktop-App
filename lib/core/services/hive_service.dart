@@ -112,6 +112,11 @@ class HiveService {
     return _productsBox!.values.cast<Product>().toList();
   }
 
+  static Product? getProductById(String id) {
+    if (_productsBox == null) return null;
+    return _productsBox!.get(id);
+  }
+
   static Future<void> updateProduct(Product product) async {
     if (_productsBox == null) return;
     await _productsBox!.put(product.id, product);

@@ -8,6 +8,7 @@ import 'package:pos/features/Home/Widgets/top_products_widget.dart';
 import 'package:pos/features/Home/Widgets/quick_actions_widget.dart';
 import 'package:pos/features/Home/Models/dashboard_data.dart';
 import 'package:pos/features/Home/Services/dashboard_service.dart';
+import 'package:pos/features/returns/screens/returned_products_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -27,6 +28,12 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _scrollController = ScrollController();
     _initFuture = _dashboardService.loadDashboardData(); // Initialize here
+  }
+
+  void _navigateToReturns() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (context) => const ReturnedProductsScreen()),
+    );
   }
 
   @override
@@ -103,10 +110,17 @@ class _HomeScreenState extends State<HomeScreen> {
                     sliver: SliverList(
                       delegate: SliverChildListDelegate([
                         QuickActionsWidget(
-                          onNewSale: () => _navigationService.navigateToNewSale(),
-                          onAddProduct: () => _navigationService.navigateToAddProduct(),
-                          onViewReports: () => _navigationService.navigateToViewReports(),
-                          onManageCustomers: () => _navigationService.navigateToManageCustomers(),
+                          onNewSale:
+                              () => _navigationService.navigateToNewSale(),
+                          onAddProduct:
+                              () => _navigationService.navigateToAddProduct(),
+                          onViewReports:
+                              () => _navigationService.navigateToViewReports(),
+                          onManageCustomers:
+                              () =>
+                                  _navigationService
+                                      .navigateToManageCustomers(),
+                          onViewReturns: _navigateToReturns,
                         ),
                         const SizedBox(height: 24),
                         Row(

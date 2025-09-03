@@ -22,7 +22,7 @@ class SettingsScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Profile Section**********************************************************************
+            // Profile Section
             Card(
               elevation: 2,
               shape: RoundedRectangleBorder(
@@ -37,26 +37,15 @@ class SettingsScreen extends StatelessWidget {
                 subtitle: const Text('Manage your personal information'),
                 trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                 onTap: () {
-                  showGeneralDialog(
+                  showDialog(
                     context: context,
-                    barrierDismissible: true,
-                    barrierLabel: "Profile",
-                    transitionDuration: const Duration(milliseconds: 400),
-                    pageBuilder: (context, anim1, anim2) {
-                      return Center(
-                        child: Dialog(
-                          child: SizedBox(
-                            height: 700,
-                            width: 550,
-                            child: ProfileScreen(),
-                          ),
+                    builder: (BuildContext context) {
+                      return Dialog(
+                        child: SizedBox(
+                          height: 900,
+                          width: 550,
+                          child: ProfileScreen(),
                         ),
-                      );
-                    },
-                    transitionBuilder: (context, anim1, anim2, child) {
-                      return Transform.scale(
-                        scale: anim1.value,
-                        child: Opacity(opacity: anim1.value, child: child),
                       );
                     },
                   );
@@ -65,7 +54,7 @@ class SettingsScreen extends StatelessWidget {
             ),
             const SizedBox(height: 16),
 
-            // Business Info Section (Placeholder)************************************************************************
+            // Business Info Section (Placeholder)
             Card(
               elevation: 2,
               shape: RoundedRectangleBorder(
@@ -80,41 +69,18 @@ class SettingsScreen extends StatelessWidget {
                 subtitle: const Text('Manage your shop details and logo'),
                 trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                 onTap: () {
-                  showGeneralDialog(
+                  showDialog(
                     context: context,
-                    barrierDismissible: true,
-                    barrierLabel: "Business Info",
-                    transitionDuration: const Duration(milliseconds: 400),
-                    pageBuilder: (context, anim1, anim2) {
-                      return Center(
-                        child: Dialog(
-                          child: SizedBox(
-                            height: 700,
-                            width: 550,
-                            child: BusinessInfoScreen(),
-                          ),
+                    builder: (BuildContext context) {
+                      return Dialog(
+                        child: SizedBox(
+                          height: 900,
+                          width: 550,
+                          child: BusinessInfoScreen(),
                         ),
                       );
                     },
-                    transitionBuilder: (context, anim1, anim2, child) {
-                      return Transform.scale(
-                        scale: anim1.value,
-                        child: Opacity(opacity: anim1.value, child: child),
-                      );
-                    },
                   );
-                  // showDialog(
-                  //   context: context,
-                  //   builder: (BuildContext context) {
-                  //     return Dialog(
-                  //       child: SizedBox(
-                  //         height: 900,
-                  //         width: 550,
-                  //         child: BusinessInfoScreen(),
-                  //       ),
-                  //     );
-                  //   },
-                  // );
                   // Navigator.push(
                   //   context,
                   //   MaterialPageRoute(builder: (context) => const BusinessInfoScreen()),
@@ -124,7 +90,7 @@ class SettingsScreen extends StatelessWidget {
             ),
             const SizedBox(height: 16),
 
-            // Activation Section (Placeholder)**************************************************************
+            // Activation Section (Placeholder)
             Card(
               elevation: 2,
               shape: RoundedRectangleBorder(
@@ -139,41 +105,18 @@ class SettingsScreen extends StatelessWidget {
                 subtitle: const Text('Activate or extend your app license'),
                 trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                 onTap: () {
-                  showGeneralDialog(
+                  showDialog(
                     context: context,
-                    barrierDismissible: true,
-                    barrierLabel: "License Activation",
-                    transitionDuration: const Duration(milliseconds: 400),
-                    pageBuilder: (context, anim1, anim2) {
-                      return Center(
-                        child: Dialog(
-                          child: SizedBox(
-                            height: 700,
-                            width: 550,
-                            child: ActivationScreen(),
-                          ),
+                    builder: (BuildContext context) {
+                      return Dialog(
+                        child: SizedBox(
+                          height: 900,
+                          width: 550,
+                          child: ActivationScreen(),
                         ),
                       );
                     },
-                    transitionBuilder: (context, anim1, anim2, child) {
-                      return Transform.scale(
-                        scale: anim1.value,
-                        child: Opacity(opacity: anim1.value, child: child),
-                      );
-                    },
                   );
-                  // showDialog(
-                  //   context: context,
-                  //   builder: (BuildContext context) {
-                  //     return Dialog(
-                  //       child: SizedBox(
-                  //         height: 900,
-                  //         width: 550,
-                  //         child: ActivationScreen(),
-                  //       ),
-                  //     );
-                  //   },
-                  // );
                 },
               ),
             ),

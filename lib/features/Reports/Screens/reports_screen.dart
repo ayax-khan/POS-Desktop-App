@@ -72,9 +72,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
       context: context,
       firstDate: DateTime(2020),
       lastDate: DateTime.now(),
-      initialDateRange: _customStartDate != null && _customEndDate != null
-          ? DateTimeRange(start: _customStartDate!, end: _customEndDate!)
-          : null,
+      initialDateRange:
+          _customStartDate != null && _customEndDate != null
+              ? DateTimeRange(start: _customStartDate!, end: _customEndDate!)
+              : null,
     );
 
     if (picked != null) {
@@ -105,42 +106,54 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: AppColors.background,
-      padding: EdgeInsets.all(AppSpacing.medium(context)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildHeader(),
-          SizedBox(height: AppSpacing.medium(context)),
-          if (_isLoading)
-            const Expanded(child: Center(child: CircularProgressIndicator()))
-          else if (_revenueData != null)
-            Expanded(
-              child: SingleChildScrollView(
-                child: Column(
-                  children: [
-                    _buildKeyMetrics(),
-                    SizedBox(height: AppSpacing.large(context)),
-                    _buildRevenueChart(),
-                    SizedBox(height: AppSpacing.large(context)),
-                    _buildBottomSection(),
-                  ],
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: Padding(
+        padding: EdgeInsets.all(AppSpacing.medium(context)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildHeader(context),
+            SizedBox(height: AppSpacing.medium(context)),
+            if (_isLoading)
+              const Expanded(child: Center(child: CircularProgressIndicator()))
+            else if (_revenueData != null)
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      _buildKeyMetrics(),
+                      SizedBox(height: AppSpacing.large(context)),
+                      _buildRevenueChart(),
+                      SizedBox(height: AppSpacing.large(context)),
+                      _buildBottomSection(),
+                    ],
+                  ),
                 ),
-              ),
-            )
-          else
-            const Expanded(child: Center(child: Text('No data available'))),
-        ],
+              )
+            else
+              const Expanded(child: Center(child: Text('No data available'))),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text('Revenue', style: AppFonts.appBarTitle),
+        Row(
+          children: [
+            IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () {
+                Navigator.pop(context);
+              },
+            ),
+            Text('Revenue', style: AppFonts.appBarTitle),
+          ],
+        ),
         Row(
           children: [
             _buildDropdown(_selectedPeriod, _periods, (value) {
@@ -159,7 +172,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
             SizedBox(width: AppSpacing.medium(context)),
             TextButton(
               onPressed: () {
-                // Compare functionality
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Compare feature coming soon')),
                 );
@@ -199,9 +211,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: value,
-          items: items.map((String item) {
-            return DropdownMenuItem<String>(value: item, child: Text(item));
-          }).toList(),
+          items:
+              items.map((String item) {
+                return DropdownMenuItem<String>(value: item, child: Text(item));
+              }).toList(),
           onChanged: (String? newValue) {
             if (newValue == 'Custom Date') {
               _selectCustomDateRange();
@@ -251,7 +264,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 showCheckIcon: false,
               ),
             ),
-            Expanded(flex: 1, child: SizedBox()), // Spacer to balance layout
+            Expanded(flex: 1, child: SizedBox()), // Spacer
           ],
         ),
       ],

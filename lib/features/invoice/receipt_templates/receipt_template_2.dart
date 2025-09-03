@@ -1,10 +1,90 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:pos/features/invoice/model/order.dart';
+import 'package:pos/features/auth/services/auth_service.dart';
+import 'package:pos/features/auth/models/business_info_model.dart';
 
-class ReceiptTemplate2 extends StatelessWidget {
+class ReceiptTemplate2 extends StatefulWidget {
   final Order order;
 
   const ReceiptTemplate2({super.key, required this.order});
+
+  @override
+  State<ReceiptTemplate2> createState() => _ReceiptTemplate2State();
+}
+
+class _ReceiptTemplate2State extends State<ReceiptTemplate2> {
+  BusinessInfoModel? _businessInfo;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBusinessInfo();
+  }
+
+  Future<void> _loadBusinessInfo() async {
+    try {
+      final authService = AuthService();
+      final businessInfo = await authService.getBusinessInfo();
+      setState(() {
+        _businessInfo = businessInfo;
+      });
+    } catch (e) {
+      // Handle error
+    }
+  }
+
+  Widget _buildBusinessHeader() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16.0),
+      decoration: BoxDecoration(
+        color: Colors.blue.shade600,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        children: [
+          if (_businessInfo?.logoPath != null)
+            Container(
+              height: 60,
+              width: 60,
+              margin: const EdgeInsets.only(bottom: 8),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                image: DecorationImage(
+                  image: FileImage(File(_businessInfo!.logoPath!)),
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ),
+          Text(
+            _businessInfo?.shopName ?? 'BuyToEnjoy',
+            style: const TextStyle(
+              fontSize: 26,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            _businessInfo?.address ?? 'Your Business Address',
+            style: const TextStyle(fontSize: 14, color: Colors.white70),
+            textAlign: TextAlign.center,
+          ),
+          if (_businessInfo?.phoneNumber != null)
+            Text(
+              'Phone: ${_businessInfo!.phoneNumber}',
+              style: const TextStyle(fontSize: 12, color: Colors.white70),
+            ),
+          if (_businessInfo?.country != null)
+            Text(
+              _businessInfo!.country!,
+              style: const TextStyle(fontSize: 12, color: Colors.white70),
+            ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -31,30 +111,7 @@ class ReceiptTemplate2 extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16.0),
-              decoration: BoxDecoration(
-                color: Colors.blue.shade600,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Column(
-                children: [
-                  const Text(
-                    'BuyToEnjoy',
-                    style: TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  Text(
-                    'Date: ${order.date.toLocal().toString().split(' ')[0]}',
-                    style: const TextStyle(fontSize: 14, color: Colors.white70),
-                  ),
-                ],
-              ),
-            ),
+            _buildBusinessHeader(),
             const SizedBox(height: 16),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -63,10 +120,10 @@ class ReceiptTemplate2 extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Order ID: ${order.id}',
+                      'Order ID: ${widget.order.id}',
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
-                    Text('Customer: ${order.customerName}'),
+                    Text('Customer: ${widget.order.customerName}'),
                   ],
                 ),
                 Container(
@@ -150,7 +207,7 @@ class ReceiptTemplate2 extends StatelessWidget {
                       ],
                     ),
                   ),
-                  ...order.products.asMap().entries.map((entry) {
+                  ...widget.order.products.asMap().entries.map((entry) {
                     final index = entry.key + 1;
                     final item = entry.value;
                     final product = item['product'];
@@ -194,7 +251,7 @@ class ReceiptTemplate2 extends StatelessWidget {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
-                'Grand Total: \$${order.total.toStringAsFixed(2)}',
+                'Grand Total: \$${widget.order.total.toStringAsFixed(2)}',
                 style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,

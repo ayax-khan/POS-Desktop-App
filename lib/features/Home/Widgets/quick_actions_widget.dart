@@ -6,6 +6,7 @@ class QuickActionsWidget extends StatelessWidget {
   final VoidCallback onAddProduct;
   final VoidCallback onViewReports;
   final VoidCallback onManageCustomers;
+  final VoidCallback onViewReturns;
 
   const QuickActionsWidget({
     super.key,
@@ -13,6 +14,7 @@ class QuickActionsWidget extends StatelessWidget {
     required this.onAddProduct,
     required this.onViewReports,
     required this.onManageCustomers,
+    required this.onViewReturns,
   });
 
   @override
@@ -47,6 +49,7 @@ class QuickActionsWidget extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
+          // First row with 3 buttons
           Row(
             children: [
               Expanded(
@@ -72,7 +75,12 @@ class QuickActionsWidget extends StatelessWidget {
                   onTap: onViewReports,
                 ),
               ),
-              const SizedBox(width: 12),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Second row with 2 buttons
+          Row(
+            children: [
               Expanded(
                 child: _buildActionButton(
                   icon: Icons.people_outline,
@@ -80,6 +88,18 @@ class QuickActionsWidget extends StatelessWidget {
                   onTap: onManageCustomers,
                 ),
               ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildActionButton(
+                  icon: Icons.assignment_return,
+                  label: 'Returns',
+                  onTap: onViewReturns,
+                  color: Colors.orange,
+                ),
+              ),
+              const SizedBox(width: 12),
+              // Empty space to balance the layout
+              const Expanded(child: SizedBox()),
             ],
           ),
         ],
@@ -91,9 +111,12 @@ class QuickActionsWidget extends StatelessWidget {
     required IconData icon,
     required String label,
     required VoidCallback onTap,
+    Color? color,
   }) {
+    final buttonColor = color ?? Colors.white;
+    
     return Material(
-      color: Colors.white.withOpacity(0.1),
+      color: buttonColor.withOpacity(0.1),
       borderRadius: BorderRadius.circular(8),
       child: InkWell(
         onTap: onTap,
@@ -102,12 +125,12 @@ class QuickActionsWidget extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 16),
           child: Column(
             children: [
-              Icon(icon, color: Colors.white, size: 28),
+              Icon(icon, color: buttonColor, size: 28),
               const SizedBox(height: 8),
               Text(
                 label,
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: buttonColor,
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
                 ),
