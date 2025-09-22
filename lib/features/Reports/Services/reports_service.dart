@@ -1,4 +1,3 @@
-// lib/features/Reports/Services/reports_service.dart
 import 'dart:io';
 import 'dart:math';
 import 'package:csv/csv.dart';
@@ -8,73 +7,178 @@ import 'package:path_provider/path_provider.dart';
 import 'package:pos/features/Customer/Models/customer_model.dart';
 import 'package:pos/core/models/products.dart';
 import 'package:pos/features/Reports/Models/revenue_data.dart';
-import 'package:pos/features/Reports/Models/transaction_model.dart';
+import 'package:pos/features/invoice/model/order.dart'; // Import Order
 import 'package:ulid/ulid.dart';
 
 class ReportsService {
-  static const String _transactionBoxName = 'transactions';
+  static const String _orderBoxName = 'ordersBox'; // Adjusted to match HiveService
+  static const String _customerBoxName = 'customers';
+  static const String _productBoxName = 'posBox'; // From HiveService, it's 'posBox' for products
 
   // Initialize Hive and register adapters
   static Future<void> init() async {
     try {
-      if (!Hive.isAdapterRegistered(3)) {
-        Hive.registerAdapter(TransactionAdapter());
+      // Assuming adapters are registered in main or HiveService.init()
+      // No need to register here if done elsewhere
+
+      // Open boxes if not already opened
+      if (!Hive.isBoxOpen(_orderBoxName)) {
+        await Hive.openBox<Order>(_orderBoxName);
       }
-      if (!Hive.isAdapterRegistered(4)) {
-        Hive.registerAdapter(TransactionItemAdapter());
+      if (!Hive.isBoxOpen(_customerBoxName)) {
+        await Hive.openBox<Customer>(_customerBoxName);
       }
-      if (!Hive.isAdapterRegistered(5)) {
-        Hive.registerAdapter(TransactionStatusAdapter());
+      if (!Hive.isBoxOpen(_productBoxName)) {
+        await Hive.openBox<Product>(_productBoxName);
       }
-      await Hive.openBox<Transaction>(_transactionBoxName);
+
+      // Add sample data for demo
+      await _addSampleDataIfNeeded();
     } catch (e) {
       debugPrint('Error initializing ReportsService: $e');
+      rethrow;
     }
   }
 
-  static Future<RevenueData> getRevenueData(String period) async {
+  static Future<RevenueData> getRevenueData({
+    required String period,
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
     try {
-      final transactions = await _getTransactionsForPeriod(period);
+      final now = DateTime.now();
+      DateTime calcStart;
+      DateTime calcEnd;
+
+      // Calculate date range based on period
+      final dateRange = _calculateDateRange(period, startDate, endDate, now);
+      calcStart = dateRange['start']!;
+      calcEnd = dateRange['end']!;
+
+      // Get orders and other data
+      final orders = await _getOrders(calcStart, calcEnd);
       final customers = await _getCustomers();
       final products = await _getProducts();
 
-      // Calculate metrics
-      final totalRevenue = _calculateTotalRevenue(transactions);
-      final totalProducts = products.length;
-      final totalCustomers = customers.length;
-      final returnRate = _calculateReturnRate(transactions);
+      // Calculate current period metrics
+      final totalRevenue = _calculateTotalRevenue(orders);
+      final totalProducts = orders.fold<int>(0, (sum, o) {
+        if (o.status == 'completed') {
+          return sum + o.products.fold<int>(0, (s, item) => s + (item['quantity'] as int));
+        }
+        return sum;
+      });
+      final totalCustomers = _getUniqueCustomers(orders).length;
+      final returnRate = _calculateReturnRate(orders);
 
-      // Calculate previous period data for comparisons
-      final previousPeriodTransactions = await _getPreviousPeriodTransactions(
-        period,
-      );
-      final previousRevenue = _calculateTotalRevenue(
-        previousPeriodTransactions,
+      // Calculate previous period for comparison
+      final periodDays = calcEnd.difference(calcStart).inDays + 1; // Adjust for inclusive days
+      final previousStart = calcStart.subtract(Duration(days: periodDays));
+      final previousEnd = calcEnd.subtract(Duration(days: periodDays));
+      final previousOrders = await _getOrders(previousStart, previousEnd);
+
+      // Previous period metrics
+      final previousRevenue = _calculateTotalRevenue(previousOrders);
+      final previousProducts = previousOrders.fold<int>(0, (sum, o) {
+        if (o.status == 'completed') {
+          return sum + o.products.fold<int>(0, (s, item) => s + (item['quantity'] as int));
+        }
+        return sum;
+      });
+      final previousCustomers = _getUniqueCustomers(previousOrders).length;
+      final previousReturnRate = _calculateReturnRate(previousOrders);
+
+      // Week over week comparison
+      final weekPreviousStart = calcStart.subtract(const Duration(days: 7));
+      final weekPreviousEnd = calcEnd.subtract(const Duration(days: 7));
+      final weekPreviousOrders = await _getOrders(
+        weekPreviousStart,
+        weekPreviousEnd,
       );
 
-      // Calculate percentage changes
-      final revenuePreviousDayChange = _calculatePercentageChange(
+      final weekPreviousRevenue = _calculateTotalRevenue(weekPreviousOrders);
+      final weekPreviousProducts = weekPreviousOrders.fold<int>(0, (sum, o) {
+        if (o.status == 'completed') {
+          return sum + o.products.fold<int>(0, (s, item) => s + (item['quantity'] as int));
+        }
+        return sum;
+      });
+      final weekPreviousCustomers = _getUniqueCustomers(weekPreviousOrders).length;
+      final weekPreviousReturnRate = _calculateReturnRate(weekPreviousOrders);
+
+      // Percentage changes
+      final revenuePreviousChange = _calculatePercentageChange(
         totalRevenue,
         previousRevenue,
       );
-      final revenueWeekOverWeekChange = _calculateWeekOverWeekChange(
-        transactions,
+      final revenueWowChange = _calculatePercentageChange(
+        totalRevenue,
+        weekPreviousRevenue,
+      );
+      final productsPreviousChange = _calculatePercentageChange(
+        totalProducts.toDouble(),
+        previousProducts.toDouble(),
+      );
+      final productsWowChange = _calculatePercentageChange(
+        totalProducts.toDouble(),
+        weekPreviousProducts.toDouble(),
+      );
+      final customersPreviousChange = _calculatePercentageChange(
+        totalCustomers.toDouble(),
+        previousCustomers.toDouble(),
+      );
+      final customersWowChange = _calculatePercentageChange(
+        totalCustomers.toDouble(),
+        weekPreviousCustomers.toDouble(),
+      );
+      final returnsPreviousChange = _calculatePercentageChange(
+        returnRate,
+        previousReturnRate,
+      );
+      final returnsWowChange = _calculatePercentageChange(
+        returnRate,
+        weekPreviousReturnRate,
       );
 
-      // Generate chart data
-      final chartData = _generateChartData(transactions, period);
-      final visitorsData = _generateVisitorsData(customers, period);
+      // Generate period-specific chart data
+      final isSingleDay = _isSingleDayPeriod(period);
+      final chartData = _generateChartData(
+        orders,
+        isSingleDay,
+        period,
+        calcStart,
+        calcEnd,
+      );
+      final visitorsData = _generateVisitorsData(
+        orders,
+        isSingleDay,
+        period,
+        calcStart,
+        calcEnd,
+      );
+      final productsData = _generateProductsData(
+        orders,
+        isSingleDay,
+        period,
+        calcStart,
+        calcEnd,
+      );
 
       // Get top customers and products
-      final topCustomers = await _getTopCustomers(transactions, customers);
-      final topProducts = await _getTopProducts(transactions, products);
+      final topCustomers = _getTopCustomers(orders, customers);
+      final topProducts = _getTopProducts(orders, products);
 
-      // Get hourly revenue
-      final hourlyRevenue = _getHourlyRevenue(transactions);
+      // Get period-specific hourly/time-based revenue
+      final hourlyRevenue = _getTimeBasedRevenue(
+        orders,
+        period,
+        calcStart,
+        calcEnd,
+      );
 
       // Calculate insights
-      final bestSalesDay = _getBestSalesDay(transactions);
-      final peakSaleData = _getPeakSaleHour(transactions);
+      final bestSalesDay = _getBestSalesDay(orders, period);
+      final peakSaleData = _getPeakSaleHour(orders);
       final lowStockCount = _getLowStockCount(products);
 
       return RevenueData(
@@ -82,69 +186,406 @@ class ReportsService {
         totalProducts: totalProducts,
         totalCustomers: totalCustomers,
         returnRate: returnRate,
-        revenuePreviousDayChange: revenuePreviousDayChange,
-        revenueWeekOverWeekChange: revenueWeekOverWeekChange,
-        productsPreviousDayChange: 17.75,
-        productsWeekOverWeekChange: 22.45,
-        customersPreviousDayChange: 17.75,
-        customersWeekOverWeekChange: 22.45,
-        returnsPreviousDayChange: 37.26,
-        returnsWeekOverWeekChange: 21.98,
+        revenuePreviousDayChange: revenuePreviousChange,
+        revenueWeekOverWeekChange: revenueWowChange,
+        productsPreviousDayChange: productsPreviousChange,
+        productsWeekOverWeekChange: productsWowChange,
+        customersPreviousDayChange: customersPreviousChange,
+        customersWeekOverWeekChange: customersWowChange,
+        returnsPreviousDayChange: returnsPreviousChange,
+        returnsWeekOverWeekChange: returnsWowChange,
         chartData: chartData,
         visitorsData: visitorsData,
+        productsData: productsData,
         topCustomers: topCustomers,
         topProducts: topProducts,
         hourlyRevenue: hourlyRevenue,
         bestSalesDay: bestSalesDay,
         peakSaleHour: peakSaleData['hour']!,
-        peakSaleAmount: double.parse(peakSaleData['amount']!),
+        peakSaleAmount: double.tryParse(peakSaleData['amount']!) ?? 0.0,
         lowStockCount: lowStockCount,
       );
+
     } catch (e) {
       debugPrint('Error getting revenue data: $e');
-      // Return default data in case of error
       return _getDefaultRevenueData();
     }
   }
 
-  static Future<List<Transaction>> _getTransactionsForPeriod(
+  static Map<String, DateTime> _calculateDateRange(
     String period,
-  ) async {
-    try {
-      final box = await Hive.openBox<Transaction>(_transactionBoxName);
-      final transactions = box.values.toList();
+    DateTime? startDate,
+    DateTime? endDate,
+    DateTime now,
+  ) {
+    DateTime calcStart;
+    DateTime calcEnd;
 
-      final now = DateTime.now();
-      final startDate = _getStartDateForPeriod(period, now);
+    if (period == 'Custom') {
+      if (startDate == null || endDate == null) {
+        throw Exception('Start and end dates required for custom period');
+      }
+      calcStart = DateTime(startDate.year, startDate.month, startDate.day);
+      calcEnd = DateTime(endDate.year, endDate.month, endDate.day, 23, 59, 59);
+    } else {
+      switch (period) {
+        case 'Today':
+          calcStart = DateTime(now.year, now.month, now.day);
+          calcEnd = DateTime(now.year, now.month, now.day, 23, 59, 59);
+          break;
+        case 'Yesterday':
+          final yesterday = now.subtract(const Duration(days: 1));
+          calcStart = DateTime(yesterday.year, yesterday.month, yesterday.day);
+          calcEnd = DateTime(yesterday.year, yesterday.month, yesterday.day, 23, 59, 59);
+          break;
+        case 'Last Week':
+          final weekStart = now.subtract(Duration(days: now.weekday - 1 + 7));
+          calcStart = DateTime(weekStart.year, weekStart.month, weekStart.day);
+          calcEnd = calcStart.add(const Duration(days: 6, hours: 23, minutes: 59, seconds: 59));
+          break;
+        case 'Last Month':
+          final lastMonth = DateTime(now.year, now.month - 1, 1);
+          calcStart = lastMonth;
+          calcEnd = DateTime(now.year, now.month, 0, 23, 59, 59);
+          break;
+        default:
+          calcStart = now.subtract(const Duration(days: 30));
+          calcEnd = now;
+      }
+    }
 
-      return transactions.where((t) => t.timestamp.isAfter(startDate)).toList();
-    } catch (e) {
-      debugPrint('Error getting transactions for period: $e');
-      return [];
+    return {'start': calcStart, 'end': calcEnd};
+  }
+
+  static bool _isSingleDayPeriod(String period) {
+    return period == 'Today' || period == 'Yesterday';
+  }
+
+  static List<ChartDataPoint> _generateChartData(
+    List<Order> orders,
+    bool isSingleDay,
+    String period,
+    DateTime start,
+    DateTime end,
+  ) {
+    if (orders.isEmpty) return [];
+
+    if (isSingleDay) {
+      // Hourly data for today/yesterday
+      final Map<int, double> hourRevenue = {};
+      for (var o in orders) {
+        if (o.status == 'completed' && o.date != null) {
+          final hour = o.date!.hour;
+          hourRevenue.update(
+            hour,
+            (v) => v + o.total,
+            ifAbsent: () => o.total,
+          );
+        }
+      }
+      return hourRevenue.entries
+          .map(
+            (e) =>
+                ChartDataPoint(date: DateTime(0, 0, 0, e.key), value: e.value),
+          )
+          .toList()
+        ..sort((a, b) => a.date.hour.compareTo(b.date.hour));
+    } else {
+      // Daily data for week/month/custom
+      final Map<DateTime, double> dayRevenue = {};
+      for (var o in orders) {
+        if (o.status == 'completed' && o.date != null) {
+          final day = DateTime(
+            o.date!.year,
+            o.date!.month,
+            o.date!.day,
+          );
+          dayRevenue.update(
+            day,
+            (v) => v + o.total,
+            ifAbsent: () => o.total,
+          );
+        }
+      }
+
+      // Fill in missing days with zero values
+      final result = <ChartDataPoint>[];
+      final current = DateTime(start.year, start.month, start.day);
+      final endDay = DateTime(end.year, end.month, end.day);
+
+      for (
+        var day = current;
+        !day.isAfter(endDay);
+        day = day.add(const Duration(days: 1))
+      ) {
+        final revenue = dayRevenue[day] ?? 0.0;
+        result.add(ChartDataPoint(date: day, value: revenue));
+      }
+
+      return result;
     }
   }
 
-  static DateTime _getStartDateForPeriod(String period, DateTime now) {
-    switch (period) {
-      case 'Today':
-        return DateTime(now.year, now.month, now.day);
-      case 'Yesterday':
-        return DateTime(now.year, now.month, now.day - 1);
-      case 'Last Week':
-        return now.subtract(Duration(days: 7));
-      case 'Last Month':
-        return DateTime(now.year, now.month - 1, now.day);
-      case 'Custom Date':
-        // For custom date, return last 30 days as default
-        return now.subtract(Duration(days: 30));
-      default:
-        return DateTime(now.year, now.month, now.day - 1);
+  static List<ChartDataPoint> _generateVisitorsData(
+    List<Order> orders,
+    bool isSingleDay,
+    String period,
+    DateTime start,
+    DateTime end,
+  ) {
+    if (orders.isEmpty) return [];
+
+    if (isSingleDay) {
+      final Map<int, Set<String>> hourVisitors = {};
+      for (var o in orders) {
+        final hour = o.date!.hour;
+        hourVisitors.update(
+          hour,
+          (s) => s..add(o.customerName),
+          ifAbsent: () => {o.customerName},
+        );
+      }
+      return hourVisitors.entries
+          .map(
+            (e) => ChartDataPoint(
+              date: DateTime(0, 0, 0, e.key),
+              value: e.value.length.toDouble(),
+            ),
+          )
+          .toList()
+        ..sort((a, b) => a.date.hour.compareTo(b.date.hour));
+    } else {
+      final Map<DateTime, Set<String>> dayVisitors = {};
+      for (var o in orders) {
+        final day = DateTime(
+          o.date!.year,
+          o.date!.month,
+          o.date!.day,
+        );
+        dayVisitors.update(
+          day,
+          (s) => s..add(o.customerName),
+          ifAbsent: () => {o.customerName},
+        );
+      }
+
+      // Fill in missing days
+      final result = <ChartDataPoint>[];
+      final current = DateTime(start.year, start.month, start.day);
+      final endDay = DateTime(end.year, end.month, end.day);
+
+      for (
+        var day = current;
+        !day.isAfter(endDay);
+        day = day.add(const Duration(days: 1))
+      ) {
+        final visitors = dayVisitors[day]?.length ?? 0;
+        result.add(ChartDataPoint(date: day, value: visitors.toDouble()));
+      }
+
+      return result;
+    }
+  }
+
+  static List<ChartDataPoint> _generateProductsData(
+    List<Order> orders,
+    bool isSingleDay,
+    String period,
+    DateTime start,
+    DateTime end,
+  ) {
+    if (orders.isEmpty) return [];
+
+    if (isSingleDay) {
+      // Hourly data for today/yesterday
+      final Map<int, double> hourProducts = {};
+      for (var o in orders) {
+        if (o.status == 'completed' && o.date != null) {
+          final hour = o.date!.hour;
+          final qty = o.products.fold(0, (sum, item) => sum + (item['quantity'] as int));
+          hourProducts.update(
+            hour,
+            (v) => v + qty.toDouble(),
+            ifAbsent: () => qty.toDouble(),
+          );
+        }
+      }
+      return hourProducts.entries
+          .map(
+            (e) =>
+                ChartDataPoint(date: DateTime(0, 0, 0, e.key), value: e.value),
+          )
+          .toList()
+        ..sort((a, b) => a.date.hour.compareTo(b.date.hour));
+    } else {
+      // Daily data for week/month/custom
+      final Map<DateTime, double> dayProducts = {};
+      for (var o in orders) {
+        if (o.status == 'completed' && o.date != null) {
+          final day = DateTime(
+            o.date!.year,
+            o.date!.month,
+            o.date!.day,
+          );
+          final qty = o.products.fold(0, (sum, item) => sum + (item['quantity'] as int));
+          dayProducts.update(
+            day,
+            (v) => v + qty.toDouble(),
+            ifAbsent: () => qty.toDouble(),
+          );
+        }
+      }
+
+      // Fill in missing days with zero values
+      final result = <ChartDataPoint>[];
+      final current = DateTime(start.year, start.month, start.day);
+      final endDay = DateTime(end.year, end.month, end.day);
+
+      for (
+        var day = current;
+        !day.isAfter(endDay);
+        day = day.add(const Duration(days: 1))
+      ) {
+        final productsQty = dayProducts[day] ?? 0.0;
+        result.add(ChartDataPoint(date: day, value: productsQty));
+      }
+
+      return result;
+    }
+  }
+
+  static List<HourlyRevenue> _getTimeBasedRevenue(
+    List<Order> orders,
+    String period,
+    DateTime start,
+    DateTime end,
+  ) {
+    if (period == 'Today' || period == 'Yesterday') {
+      return _getHourlyRevenue(orders, true);
+    } else if (period == 'Last Month') {
+      return _getWeeklyRevenue(orders, start, end);
+    } else {
+      return _getDailyRevenue(orders, start, end);
+    }
+  }
+
+  static List<HourlyRevenue> _getHourlyRevenue(
+    List<Order> orders,
+    bool isSingleDay,
+  ) {
+    final Map<int, double> hourMap = {};
+    for (var o in orders) {
+      if (o.status == 'completed' && o.date != null) {
+        final h = o.date!.hour;
+        hourMap.update(
+          h,
+          (v) => v + o.total,
+          ifAbsent: () => o.total,
+        );
+      }
+    }
+
+    final List<HourlyRevenue> hourly = [];
+    if (isSingleDay) {
+      final currentHour = DateTime.now().hour;
+      final startHour = max(0, currentHour - 6);
+      for (int i = startHour; i <= min(23, currentHour + 1); i++) {
+        final amt = hourMap[i] ?? 0.0;
+        final hourStr = '${i.toString().padLeft(2, '0')}:00';
+        hourly.add(HourlyRevenue(hour: hourStr, amount: amt));
+      }
+    }
+    return hourly;
+  }
+
+  static List<HourlyRevenue> _getDailyRevenue(
+    List<Order> orders,
+    DateTime start,
+    DateTime end,
+  ) {
+    final Map<DateTime, double> dayMap = {};
+    for (var o in orders) {
+      if (o.status == 'completed' && o.date != null) {
+        final day = DateTime(
+          o.date!.year,
+          o.date!.month,
+          o.date!.day,
+        );
+        dayMap.update(
+          day,
+          (v) => v + o.total,
+          ifAbsent: () => o.total,
+        );
+      }
+    }
+
+    final List<HourlyRevenue> daily = [];
+    final current = DateTime(start.year, start.month, start.day);
+    final endDay = DateTime(end.year, end.month, end.day);
+
+    for (
+      var day = current;
+      !day.isAfter(endDay);
+      day = day.add(const Duration(days: 1))
+    ) {
+      final amt = dayMap[day] ?? 0.0;
+      final dayStr = '${day.day}/${day.month}';
+      daily.add(HourlyRevenue(hour: dayStr, amount: amt));
+    }
+
+    return daily.take(10).toList(); // Limit to last 10 days
+  }
+
+  static List<HourlyRevenue> _getWeeklyRevenue(
+    List<Order> orders,
+    DateTime start,
+    DateTime end,
+  ) {
+    final Map<int, double> weekMap = {};
+    for (var o in orders) {
+      if (o.status == 'completed' && o.date != null) {
+        final weekNumber = ((o.date!.difference(start).inDays) / 7).floor();
+        weekMap.update(
+          weekNumber,
+          (v) => v + o.total,
+          ifAbsent: () => o.total,
+        );
+      }
+    }
+
+    final List<HourlyRevenue> weekly = [];
+    final totalWeeks = ((end.difference(start).inDays) / 7).ceil();
+
+    for (int i = 0; i < min(4, totalWeeks); i++) {
+      final amt = weekMap[i] ?? 0.0;
+      final weekStr = 'Week ${i + 1}';
+      weekly.add(HourlyRevenue(hour: weekStr, amount: amt));
+    }
+
+    return weekly;
+  }
+
+  // Helper methods (keeping existing ones)
+  static Future<List<Order>> _getOrders(
+    DateTime start,
+    DateTime end,
+  ) async {
+    try {
+      final box = Hive.box<Order>(_orderBoxName);
+      return box.values
+          .where(
+            (o) => o.date != null && !o.date!.isBefore(start) && !o.date!.isAfter(end),
+          )
+          .toList();
+    } catch (e) {
+      debugPrint('Error getting orders: $e');
+      return [];
     }
   }
 
   static Future<List<Customer>> _getCustomers() async {
     try {
-      final box = await Hive.openBox<Customer>('customers');
+      final box = Hive.box<Customer>(_customerBoxName);
       return box.values.toList();
     } catch (e) {
       debugPrint('Error getting customers: $e');
@@ -154,7 +595,7 @@ class ReportsService {
 
   static Future<List<Product>> _getProducts() async {
     try {
-      final box = await Hive.openBox<Product>('products');
+      final box = Hive.box<Product>(_productBoxName);
       return box.values.toList();
     } catch (e) {
       debugPrint('Error getting products: $e');
@@ -162,44 +603,29 @@ class ReportsService {
     }
   }
 
-  static double _calculateTotalRevenue(List<Transaction> transactions) {
-    return transactions
-        .where((t) => t.status == TransactionStatus.completed)
-        .fold(0.0, (sum, t) => sum + t.totalAmount);
+  static double _calculateTotalRevenue(List<Order> orders) {
+    return orders.fold(0.0, (sum, o) {
+      if (o.status == 'completed') {
+        return sum + o.total;
+      }
+      return sum;
+    });
   }
 
-  static double _calculateReturnRate(List<Transaction> transactions) {
-    final totalTransactions = transactions.length;
-    if (totalTransactions == 0) return 0.0;
-
-    final refundedTransactions =
-        transactions
-            .where((t) => t.status == TransactionStatus.refunded)
-            .length;
-
-    return (refundedTransactions / totalTransactions) * 100;
+  static Set<String> _getUniqueCustomers(List<Order> orders) {
+    return orders.map((o) => o.customerName).toSet();
   }
 
-  static Future<List<Transaction>> _getPreviousPeriodTransactions(
-    String period,
-  ) async {
-    try {
-      final box = await Hive.openBox<Transaction>(_transactionBoxName);
-      final transactions = box.values.toList();
-
-      final now = DateTime.now();
-      final previousStartDate = _getStartDateForPeriod(
-        period,
-        now.subtract(const Duration(days: 7)),
-      );
-
-      return transactions
-          .where((t) => t.timestamp.isAfter(previousStartDate))
-          .toList();
-    } catch (e) {
-      debugPrint('Error getting previous period transactions: $e');
-      return [];
-    }
+  static double _calculateReturnRate(List<Order> orders) {
+    if (orders.isEmpty) return 0.0;
+    final refundedAmount = orders.fold(0.0, (sum, o) {
+      if (o.status == 'refunded') {
+        return sum + o.total;
+      }
+      return sum;
+    });
+    final totalRevenue = _calculateTotalRevenue(orders);
+    return totalRevenue > 0 ? (refundedAmount / totalRevenue) * 100 : 0.0;
   }
 
   static double _calculatePercentageChange(double current, double previous) {
@@ -207,304 +633,171 @@ class ReportsService {
     return ((current - previous) / previous) * 100;
   }
 
-  static double _calculateWeekOverWeekChange(List<Transaction> transactions) {
-    // Simplified calculation - in a real app, this would compare actual week data
-    return 15.73; // Mock value
-  }
-
-  static List<ChartDataPoint> _generateChartData(
-    List<Transaction> transactions,
-    String period,
-  ) {
-    final Map<DateTime, double> dailyRevenue = {};
-
-    for (final transaction in transactions) {
-      final date = DateTime(
-        transaction.timestamp.year,
-        transaction.timestamp.month,
-        transaction.timestamp.day,
-      );
-
-      dailyRevenue[date] = (dailyRevenue[date] ?? 0) + transaction.totalAmount;
-    }
-
-    final sortedDates = dailyRevenue.keys.toList()..sort();
-    return sortedDates
-        .map((date) => ChartDataPoint(date: date, value: dailyRevenue[date]!))
-        .toList();
-  }
-
-  static List<ChartDataPoint> _generateVisitorsData(
+  static List<TopCustomer> _getTopCustomers(
+    List<Order> orders,
     List<Customer> customers,
-    String period,
   ) {
-    // Mock visitors data - in real app, you'd track customer visits
-    final now = DateTime.now();
-    final data = <ChartDataPoint>[];
-
-    for (int i = 7; i >= 0; i--) {
-      final date = now.subtract(Duration(days: i));
-      final visitors = Random().nextInt(50) + 20; // Mock data
-      data.add(ChartDataPoint(date: date, value: visitors.toDouble()));
-    }
-
-    return data;
-  }
-
-  static Future<List<TopCustomer>> _getTopCustomers(
-    List<Transaction> transactions,
-    List<Customer> customers,
-  ) async {
-    final Map<String, double> customerRevenue = {};
-
-    for (final transaction in transactions) {
-      customerRevenue[transaction.customerId] =
-          (customerRevenue[transaction.customerId] ?? 0) +
-          transaction.totalAmount;
-    }
-
-    final sortedCustomers =
-        customerRevenue.entries.toList()
-          ..sort((a, b) => b.value.compareTo(a.value));
-
-    final topCustomers = <TopCustomer>[];
-    for (final entry in sortedCustomers.take(5)) {
-      final customer = customers.firstWhere(
-        (c) => c.id == entry.key,
-        orElse:
-            () => Customer(
-              id: entry.key,
-              name: 'Unknown Customer',
-              email: '',
-              phone: '',
-              group: '',
-              createdAt: DateTime.now(),
-            ),
-      );
-
-      topCustomers.add(TopCustomer(name: customer.name, amount: entry.value));
-    }
-
-    // Add default customers if no transactions exist
-    if (topCustomers.isEmpty) {
-      topCustomers.addAll([
-        TopCustomer(name: 'Ali Raza', amount: 25340),
-        TopCustomer(name: 'Fatimo Ahmed', amount: 18320),
-        TopCustomer(name: 'Hasan Ali', amount: 14750),
-        TopCustomer(name: 'Sara Khan', amount: 8300),
-        TopCustomer(name: 'Umar Malik', amount: 8150),
-      ]);
-    }
-
-    return topCustomers;
-  }
-
-  static Future<List<TopProduct>> _getTopProducts(
-    List<Transaction> transactions,
-    List<Product> products,
-  ) async {
-    final Map<String, Map<String, dynamic>> productStats = {};
-
-    for (final transaction in transactions) {
-      for (final item in transaction.items) {
-        if (!productStats.containsKey(item.productId)) {
-          productStats[item.productId] = {'units': 0, 'amount': 0.0};
-        }
-
-        productStats[item.productId]!['units'] += item.quantity;
-        productStats[item.productId]!['amount'] += item.totalPrice;
+    final Map<String, double> customerAmounts = {};
+    for (var o in orders) {
+      if (o.status == 'completed') {
+        customerAmounts.update(
+          o.customerName,
+          (v) => v + o.total,
+          ifAbsent: () => o.total,
+        );
       }
     }
 
-    final sortedProducts =
+    final sorted =
+        customerAmounts.entries.toList()
+          ..sort((a, b) => b.value.compareTo(a.value));
+    final top5 = sorted.take(5);
+    // Since customer IDs are not in Order, use name directly; if needed, match name to customer box
+    return top5
+        .map(
+          (e) => TopCustomer(
+            name: e.key,
+            amount: e.value,
+          ),
+        )
+        .toList();
+  }
+
+  static List<TopProduct> _getTopProducts(
+    List<Order> orders,
+    List<Product> products,
+  ) {
+    final Map<String, Map<String, dynamic>> productStats = {};
+    for (var o in orders) {
+      if (o.status == 'completed') {
+        for (var item in o.products) {
+          final product = item['product'] as Product;
+          final quantity = item['quantity'] as int;
+          final id = product.id;
+          final entry = productStats[id] ?? {'units': 0, 'amount': 0.0};
+          entry['units'] += quantity;
+          entry['amount'] += product.sellingPrice * quantity;
+          productStats[id] = entry;
+        }
+      }
+    }
+
+    final sorted =
         productStats.entries.toList()
           ..sort((a, b) => b.value['amount'].compareTo(a.value['amount']));
+    final top5 = sorted.take(5);
+    final productMap = {
+      for (var p in products) p.id: {'name': p.name, 'sku': p.sku},
+    };
 
-    final topProducts = <TopProduct>[];
-    for (final entry in sortedProducts.take(5)) {
-      final product = products.firstWhere(
-        (p) => p.id == entry.key,
-        orElse:
-            () => Product(
-              id: entry.key,
-              name: 'Unknown Product',
-              category: '',
-              purchasePrice: 0,
-              sellingPrice: 0,
-              stockQuantity: 0,
-              unit: '',
-            ),
+    return top5.map((e) {
+      final info =
+          productMap[e.key] ?? {'name': 'Product ${e.key}', 'sku': null};
+      return TopProduct(
+        name: info['name'] ?? 'Unknown Product',
+        units: e.value['units'],
+        amount: e.value['amount'],
+        sku: info['sku'],
       );
-
-      topProducts.add(
-        TopProduct(
-          name: product.name,
-          units: entry.value['units'],
-          amount: entry.value['amount'],
-          sku: product.sku,
-        ),
-      );
-    }
-
-    // Add default products if no transactions exist
-    if (topProducts.isEmpty) {
-      topProducts.addAll([
-        TopProduct(name: 'Stapler', units: 78, amount: 3900, sku: '(2089)'),
-        TopProduct(name: 'Pen', units: 85, amount: 5250, sku: '(21560)'),
-        TopProduct(name: 'Notebook', units: 75, amount: 2500, sku: '(28501)'),
-        TopProduct(name: 'Folder', units: 40, amount: 1400, sku: '(12873)'),
-        TopProduct(name: 'Glue', units: 35, amount: 1400, sku: '(35594)'),
-      ]);
-    }
-
-    return topProducts;
+    }).toList();
   }
 
-  static List<HourlyRevenue> _getHourlyRevenue(List<Transaction> transactions) {
-    final Map<int, double> hourlyRevenue = {};
+  static String _getBestSalesDay(
+    List<Order> orders,
+    String period,
+  ) {
+    if (orders.isEmpty) return 'N/A';
 
-    for (final transaction in transactions) {
-      final hour = transaction.timestamp.hour;
-      hourlyRevenue[hour] =
-          (hourlyRevenue[hour] ?? 0) + transaction.totalAmount;
+    final Map<DateTime, double> dayMap = {};
+    for (var o in orders) {
+      if (o.status == 'completed' && o.date != null) {
+        final day = DateTime(
+          o.date!.year,
+          o.date!.month,
+          o.date!.day,
+        );
+        dayMap.update(
+          day,
+          (v) => v + o.total,
+          ifAbsent: () => o.total,
+        );
+      }
     }
 
-    final hourlyData = <HourlyRevenue>[];
-    final defaultRevenue = 120000.0; // Default mock value
+    if (dayMap.isEmpty) return 'N/A';
+    final maxDay = dayMap.entries.reduce((a, b) => a.value > b.value ? a : b);
 
-    for (int hour = 10; hour <= 17; hour++) {
-      final amount = hourlyRevenue[hour] ?? defaultRevenue;
-      final timeLabel =
-          hour == 12
-              ? '12pm'
-              : '${hour > 12 ? hour - 12 : hour}${hour >= 12 ? 'pm' : 'am'}';
-
-      hourlyData.add(HourlyRevenue(hour: timeLabel, amount: amount));
-    }
-
-    return hourlyData;
+    final weekdayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    final monthAbbr = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return '${weekdayNames[maxDay.key.weekday - 1]}, ${monthAbbr[maxDay.key.month - 1]} ${maxDay.key.day}';
   }
 
-  static String _getBestSalesDay(List<Transaction> transactions) {
-    final Map<int, double> dailyRevenue = {};
-
-    for (final transaction in transactions) {
-      final day = transaction.timestamp.day;
-      dailyRevenue[day] = (dailyRevenue[day] ?? 0) + transaction.totalAmount;
+  static Map<String, String> _getPeakSaleHour(List<Order> orders) {
+    final Map<int, double> hourMap = {};
+    for (var o in orders) {
+      if (o.status == 'completed' && o.date != null) {
+        final h = o.date!.hour;
+        hourMap.update(
+          h,
+          (v) => v + o.total,
+          ifAbsent: () => o.total,
+        );
+      }
     }
 
-    if (dailyRevenue.isEmpty) return 'April 6';
-
-    final bestDay = dailyRevenue.entries.reduce(
+    if (hourMap.isEmpty) return {'hour': 'N/A', 'amount': '0'};
+    final maxEntry = hourMap.entries.reduce(
       (a, b) => a.value > b.value ? a : b,
     );
-    return 'April ${bestDay.key}';
-  }
-
-  static Map<String, String> _getPeakSaleHour(List<Transaction> transactions) {
-    final Map<int, double> hourlyRevenue = {};
-
-    for (final transaction in transactions) {
-      final hour = transaction.timestamp.hour;
-      hourlyRevenue[hour] =
-          (hourlyRevenue[hour] ?? 0) + transaction.totalAmount;
-    }
-
-    if (hourlyRevenue.isEmpty) {
-      return {'hour': '2 PM', 'amount': '31200'};
-    }
-
-    final peakHour = hourlyRevenue.entries.reduce(
-      (a, b) => a.value > b.value ? a : b,
-    );
-    final hourLabel =
-        peakHour.key == 12
-            ? '12 PM'
-            : '${peakHour.key > 12 ? peakHour.key - 12 : peakHour.key} ${peakHour.key >= 12 ? 'PM' : 'AM'}';
-
-    return {'hour': hourLabel, 'amount': peakHour.value.toStringAsFixed(0)};
+    final hourStr = '${maxEntry.key.toString().padLeft(2, '0')}:00';
+    return {'hour': hourStr, 'amount': maxEntry.value.toStringAsFixed(2)};
   }
 
   static int _getLowStockCount(List<Product> products) {
-    return products
-        .where(
-          (p) => p.reorderLevel != null && p.stockQuantity < p.reorderLevel!,
-        )
-        .length;
+    const threshold = 10;
+    return products.where((p) => p.stockQuantity < threshold).length;
   }
 
   static RevenueData _getDefaultRevenueData() {
     return RevenueData(
-      totalRevenue: 44532.00,
-      totalProducts: 1789,
-      totalCustomers: 1789,
-      returnRate: 1.96,
-      revenuePreviousDayChange: 35.05,
-      revenueWeekOverWeekChange: 15.73,
-      productsPreviousDayChange: 17.75,
-      productsWeekOverWeekChange: 22.45,
-      customersPreviousDayChange: 17.75,
-      customersWeekOverWeekChange: 22.45,
-      returnsPreviousDayChange: 37.26,
-      returnsWeekOverWeekChange: 21.98,
-      chartData: _getDefaultChartData(),
-      visitorsData: _getDefaultVisitorsData(),
-      topCustomers: [
-        TopCustomer(name: 'Ali Raza', amount: 25340),
-        TopCustomer(name: 'Fatimo Ahmed', amount: 18320),
-        TopCustomer(name: 'Hasan Ali', amount: 14750),
-        TopCustomer(name: 'Sara Khan', amount: 8300),
-        TopCustomer(name: 'Umar Malik', amount: 8150),
-      ],
-      topProducts: [
-        TopProduct(name: 'Stapler', units: 78, amount: 3900, sku: '(2089)'),
-        TopProduct(name: 'Pen', units: 85, amount: 5250, sku: '(21560)'),
-        TopProduct(name: 'Notebook', units: 75, amount: 2500, sku: '(28501)'),
-        TopProduct(name: 'Folder', units: 40, amount: 1400, sku: '(12873)'),
-        TopProduct(name: 'Glue', units: 35, amount: 1400, sku: '(35594)'),
-      ],
-      hourlyRevenue: [
-        HourlyRevenue(hour: '10am', amount: 120000),
-        HourlyRevenue(hour: '11am', amount: 120000),
-        HourlyRevenue(hour: '12pm', amount: 120000),
-        HourlyRevenue(hour: '1pm', amount: 120000),
-        HourlyRevenue(hour: '2pm', amount: 120000),
-      ],
-      bestSalesDay: 'April 6',
-      peakSaleHour: '2 PM',
-      peakSaleAmount: 31200,
-      lowStockCount: 3,
+      totalRevenue: 0.0,
+      totalProducts: 0,
+      totalCustomers: 0,
+      returnRate: 0.0,
+      revenuePreviousDayChange: 0.0,
+      revenueWeekOverWeekChange: 0.0,
+      productsPreviousDayChange: 0.0,
+      productsWeekOverWeekChange: 0.0,
+      customersPreviousDayChange: 0.0,
+      customersWeekOverWeekChange: 0.0,
+      returnsPreviousDayChange: 0.0,
+      returnsWeekOverWeekChange: 0.0,
+      chartData: [],
+      visitorsData: [],
+      topCustomers: [],
+      topProducts: [],
+      productsData: [],
+      hourlyRevenue: [],
+      bestSalesDay: 'N/A',
+      peakSaleHour: 'N/A',
+      peakSaleAmount: 0.0,
+      lowStockCount: 0,
     );
   }
 
-  static List<ChartDataPoint> _getDefaultChartData() {
-    final now = DateTime.now();
-    final data = <ChartDataPoint>[];
-
-    for (int i = 7; i >= 0; i--) {
-      final date = now.subtract(Duration(days: i));
-      final revenue =
-          Random().nextDouble() * 50000 + 30000; // Mock revenue data
-      data.add(ChartDataPoint(date: date, value: revenue));
-    }
-
-    return data;
-  }
-
-  static List<ChartDataPoint> _getDefaultVisitorsData() {
-    final now = DateTime.now();
-    final data = <ChartDataPoint>[];
-
-    for (int i = 7; i >= 0; i--) {
-      final date = now.subtract(Duration(days: i));
-      final visitors = Random().nextInt(50) + 20; // Mock visitors data
-      data.add(ChartDataPoint(date: date, value: visitors.toDouble()));
-    }
-
-    return data;
-  }
-
-  // Export functionality
   static Future<String> exportRevenueReport(
     RevenueData data,
     String period,
@@ -512,76 +805,102 @@ class ReportsService {
     try {
       List<List<dynamic>> csvData = [];
 
-      // Add headers
+      // Report Header
       csvData.add(['Revenue Report - $period']);
+      csvData.add(['Generated on: ${DateTime.now().toString()}']);
       csvData.add([]);
+
+      // Key Metrics
       csvData.add(['Key Metrics']);
       csvData.add([
         'Metric',
         'Value',
-        'Previous Day Change',
-        'Week over Week Change',
+        'Previous Period Change (%)',
+        'Week over Week Change (%)',
       ]);
       csvData.add([
-        'Revenue',
-        'PKR${data.totalRevenue.toStringAsFixed(2)}',
-        '${data.revenuePreviousDayChange.toStringAsFixed(2)}%',
-        '${data.revenueWeekOverWeekChange.toStringAsFixed(2)}%',
+        'Revenue (PKR)',
+        data.totalRevenue.toStringAsFixed(2),
+        data.revenuePreviousDayChange.toStringAsFixed(1),
+        data.revenueWeekOverWeekChange.toStringAsFixed(1),
       ]);
       csvData.add([
-        'Products',
-        data.totalProducts.toString(),
-        '${data.productsPreviousDayChange.toStringAsFixed(2)}%',
-        '${data.productsWeekOverWeekChange.toStringAsFixed(2)}%',
+        'Products Sold',
+        data.totalProducts,
+        data.productsPreviousDayChange.toStringAsFixed(1),
+        data.productsWeekOverWeekChange.toStringAsFixed(1),
       ]);
       csvData.add([
         'Customers',
-        data.totalCustomers.toString(),
-        '${data.customersPreviousDayChange.toStringAsFixed(2)}%',
-        '${data.customersWeekOverWeekChange.toStringAsFixed(2)}%',
+        data.totalCustomers,
+        data.customersPreviousDayChange.toStringAsFixed(1),
+        data.customersWeekOverWeekChange.toStringAsFixed(1),
       ]);
       csvData.add([
-        'Returns',
-        '${data.returnRate.toStringAsFixed(2)}%',
-        '${data.returnsPreviousDayChange.toStringAsFixed(2)}%',
-        '${data.returnsWeekOverWeekChange.toStringAsFixed(2)}%',
+        'Return Rate (%)',
+        data.returnRate.toStringAsFixed(2),
+        data.returnsPreviousDayChange.toStringAsFixed(1),
+        data.returnsWeekOverWeekChange.toStringAsFixed(1),
       ]);
-
       csvData.add([]);
+
+      // Top Customers
       csvData.add(['Top Customers']);
-      csvData.add(['Customer Name', 'Revenue (PKR)']);
-      for (var customer in data.topCustomers) {
-        csvData.add([customer.name, customer.amount.toStringAsFixed(2)]);
+      csvData.add(['Rank', 'Name', 'Total Amount (PKR)']);
+      for (int i = 0; i < data.topCustomers.length; i++) {
+        final customer = data.topCustomers[i];
+        csvData.add([i + 1, customer.name, customer.amount.toStringAsFixed(2)]);
       }
-
       csvData.add([]);
+
+      // Top Products
       csvData.add(['Top Products']);
-      csvData.add(['Product Name', 'Units Sold', 'Revenue (PKR)', 'SKU']);
-      for (var product in data.topProducts) {
+      csvData.add(['Rank', 'Name', 'SKU', 'Units Sold', 'Revenue (PKR)']);
+      for (int i = 0; i < data.topProducts.length; i++) {
+        final product = data.topProducts[i];
         csvData.add([
+          i + 1,
           product.name,
-          product.units.toString(),
-          product.amount.toStringAsFixed(2),
           product.sku ?? 'N/A',
+          product.units,
+          product.amount.toStringAsFixed(2),
         ]);
       }
-
       csvData.add([]);
-      csvData.add(['Hourly Revenue']);
-      csvData.add(['Hour', 'Revenue (PKR)']);
+
+      // Time-based Revenue
+      final timeLabel =
+          period == 'Last Month'
+              ? 'Weekly Revenue'
+              : (period == 'Today' || period == 'Yesterday')
+              ? 'Hourly Revenue'
+              : 'Daily Revenue';
+      csvData.add([timeLabel]);
+      csvData.add(['Period', 'Revenue (PKR)']);
       for (var hourly in data.hourlyRevenue) {
         csvData.add([hourly.hour, hourly.amount.toStringAsFixed(2)]);
       }
+      csvData.add([]);
 
-      // Convert to CSV string
+      // Sales Insights
+      csvData.add(['Sales Insights']);
+      csvData.add(['Best Sales Day', data.bestSalesDay]);
+      csvData.add(['Peak Sales Hour', data.peakSaleHour]);
+      csvData.add([
+        'Peak Hour Revenue (PKR)',
+        data.peakSaleAmount.toStringAsFixed(2),
+      ]);
+      csvData.add(['Low Stock Items Count', data.lowStockCount]);
+
+      // Convert to CSV
       String csv = const ListToCsvConverter().convert(csvData);
 
-      // Get directory for saving file
+      // Save file
       Directory directory = await getApplicationDocumentsDirectory();
-      String filePath =
-          '${directory.path}/revenue_report_${period.toLowerCase().replaceAll(' ', '_')}_${DateTime.now().millisecondsSinceEpoch}.csv';
+      String fileName =
+          'revenue_report_${period.toLowerCase().replaceAll(' ', '_')}_${DateTime.now().millisecondsSinceEpoch}.csv';
+      String filePath = '${directory.path}/$fileName';
 
-      // Write to file
       File file = File(filePath);
       await file.writeAsString(csv);
 
@@ -592,133 +911,252 @@ class ReportsService {
     }
   }
 
-  // Add sample transaction data for demo
-  static Future<void> addSampleTransactions() async {
+  // Sample data generation
+  static Future<void> _addSampleDataIfNeeded() async {
     try {
-      final box = await Hive.openBox<Transaction>(_transactionBoxName);
+      final orderBox = Hive.box<Order>(_orderBoxName);
+      final customerBox = Hive.box<Customer>(_customerBoxName);
+      final productBox = Hive.box<Product>(_productBoxName);
 
-      if (box.isEmpty) {
-        final sampleTransactions = _generateSampleTransactions();
-        for (var transaction in sampleTransactions) {
-          await box.put(transaction.id, transaction);
-        }
-        debugPrint('Added ${sampleTransactions.length} sample transactions');
+      // Add sample customers if empty
+      if (customerBox.isEmpty) {
+        await _addSampleCustomers();
+      }
+
+      // Add sample products if empty
+      if (productBox.isEmpty) {
+        await _addSampleProducts();
+      }
+
+      // Add sample orders if empty
+      if (orderBox.isEmpty) {
+        await addSampleOrders();
       }
     } catch (e) {
-      debugPrint('Error adding sample transactions: $e');
+      debugPrint('Error adding sample data: $e');
     }
   }
 
-  static List<Transaction> _generateSampleTransactions() {
+  static Future<void> _addSampleCustomers() async {
+    final box = Hive.box<Customer>(_customerBoxName);
+    final customerNames = [
+      'Ahmed Ali',
+      'Fatima Khan',
+      'Muhammad Hassan',
+      'Ayesha Ahmed',
+      'Omar Malik',
+      'Sana Sheikh',
+      'Ali Raza',
+      'Zara Hussain',
+      'Tariq Mahmood',
+      'Hina Butt',
+      'Kashif Iqbal',
+      'Mariam Qureshi',
+      'Usman Dar',
+      'Rabia Nawaz',
+      'Bilal Shah',
+      'Sidra Aslam',
+      'Fahad Khan',
+      'Nadia Mirza',
+      'Hamza Cheema',
+      'Sadia Malik',
+    ];
+
+    for (int i = 0; i < customerNames.length; i++) {
+      final customer = Customer(
+        id: 'customer_$i',
+        name: customerNames[i],
+        email:
+            '${customerNames[i].toLowerCase().replaceAll(' ', '.')}@email.com',
+        phone: '+92300${1000000 + i}',
+        group: 'general',
+        createdAt: DateTime.now().subtract(
+          Duration(days: Random().nextInt(365)),
+        ),
+      );
+      await box.put(customer.id, customer);
+    }
+  }
+
+  static Future<void> _addSampleProducts() async {
+    final box = Hive.box<Product>(_productBoxName);
+    final productNames = [
+      'Laptop Dell XPS',
+      'iPhone 14 Pro',
+      'Samsung Galaxy S23',
+      'MacBook Air M2',
+      'iPad Pro',
+      'Sony Headphones',
+      'Nike Running Shoes',
+      'Adidas T-Shirt',
+      'Canon Camera',
+      'HP Printer',
+      'Office Chair',
+      'Gaming Keyboard',
+      'Wireless Mouse',
+      'Monitor 24"',
+      'USB Cable',
+      'Power Bank',
+      'Bluetooth Speaker',
+      'Smart Watch',
+      'Tablet Android',
+      'Laptop Bag',
+    ];
+
+    for (int i = 0; i < productNames.length; i++) {
+      final product = Product(
+        id: 'product_$i',
+        name: productNames[i],
+        sku: 'SKU${1000 + i}',
+        sellingPrice: (Random().nextDouble() * 50000) + 1000, // 1000-51000 PKR
+        purchasePrice:
+            ((Random().nextDouble() * 0.5) + 0.5) *
+            ((Random().nextDouble() * 50000) + 1000), // <-- added
+        stockQuantity: Random().nextInt(100) + 5, // 5-105 units
+        unit: ['pcs', 'box', 'pair', 'kg'][Random().nextInt(4)], // <-- added
+        category:
+            ['Electronics', 'Clothing', 'Accessories', 'Office'][Random()
+                .nextInt(4)],
+        description: 'High quality ${productNames[i]}',
+        expiryDate: DateTime.now().subtract(
+          Duration(days: Random().nextInt(180)),
+        ),
+      );
+      await box.put(product.id, product);
+    }
+  }
+
+  static Future<void> addSampleOrders() async {
+    final box = Hive.box<Order>(_orderBoxName);
+    if (box.isNotEmpty) return;
+
     final random = Random();
-    final transactions = <Transaction>[];
     final now = DateTime.now();
 
-    // Generate transactions for the last 30 days
-    for (int i = 0; i < 30; i++) {
+    // Generate more realistic transaction patterns
+    for (int i = 0; i < 60; i++) {
+      // 60 days of data
       final date = now.subtract(Duration(days: i));
-      final transactionCount =
-          random.nextInt(10) + 5; // 5-15 transactions per day
+
+      // Weekend vs weekday logic
+      final isWeekend =
+          date.weekday == DateTime.saturday || date.weekday == DateTime.sunday;
+      final baseTransactionCount =
+          isWeekend ? 3 : 8; // Fewer transactions on weekends
+      final transactionCount = random.nextInt(baseTransactionCount) + 2;
 
       for (int j = 0; j < transactionCount; j++) {
-        final transactionTime = date.add(
-          Duration(
-            hours: random.nextInt(12) + 8, // 8 AM to 8 PM
-            minutes: random.nextInt(60),
-          ),
+        // Business hours logic
+        final hour =
+            isWeekend
+                ? random.nextInt(8) + 10
+                : // 10 AM - 6 PM on weekends
+                random.nextInt(10) + 8; // 8 AM - 6 PM on weekdays
+
+        final transactionTime = DateTime(
+          date.year,
+          date.month,
+          date.day,
+          hour,
+          random.nextInt(60),
         );
 
-        final items = <TransactionItem>[];
+        final items = <Map<String, dynamic>>[];
         final itemCount = random.nextInt(3) + 1; // 1-3 items per transaction
-
         double totalAmount = 0;
+
         for (int k = 0; k < itemCount; k++) {
-          final quantity = random.nextInt(5) + 1;
-          final unitPrice = (random.nextDouble() * 500) + 50; // 50-550 PKR
+          final productIndex = random.nextInt(20);
+          final quantity = random.nextInt(3) + 1; // 1-3 quantity
+          final unitPrice =
+              (random.nextDouble() * 20000) + 500; // 500-20500 PKR
           final totalPrice = quantity * unitPrice;
           totalAmount += totalPrice;
 
-          items.add(
-            TransactionItem(
-              productId: 'product_${random.nextInt(100)}',
-              productName: 'Product ${random.nextInt(100)}',
-              quantity: quantity,
-              unitPrice: unitPrice,
-              totalPrice: totalPrice,
-            ),
+          final product = Product(
+            id: 'product_$productIndex',
+            name: 'Product $productIndex',
+            sku: 'SKU$productIndex',
+            sellingPrice: unitPrice,
+            purchasePrice: unitPrice * 0.8,
+            stockQuantity: 100,
+            unit: 'pcs',
+            category: 'Electronics',
+            description: '',
+            expiryDate: DateTime.now(),
           );
+
+          items.add({'product': product, 'quantity': quantity});
         }
 
-        final taxAmount = totalAmount * 0.18; // 18% tax
-        final discountAmount = random.nextDouble() * 100; // Random discount
-
-        transactions.add(
-          Transaction(
-            id: Ulid().toString(),
-            customerId: 'customer_${random.nextInt(50)}',
-            items: items,
-            totalAmount: totalAmount + taxAmount - discountAmount,
-            taxAmount: taxAmount,
-            discountAmount: discountAmount,
-            timestamp: transactionTime,
-            paymentMethod: ['Cash', 'Card', 'Online'][random.nextInt(3)],
-            status: TransactionStatus.values[random.nextInt(4)],
-          ),
+        final order = Order(
+          id: Ulid().toString(),
+          customerName: 'Customer ${random.nextInt(20)}',
+          products: items,
+          total: totalAmount,
+          date: transactionTime,
+          templateId: random.nextInt(4),
+          status: random.nextInt(100) < 95 ? 'completed' : 'refunded',
         );
+
+        await box.put(order.id, order);
       }
     }
-
-    return transactions;
   }
 
-  // Add a new transaction
-  static Future<void> addTransaction(Transaction transaction) async {
+  // Transaction management methods
+  static Future<void> addOrder(Order order) async {
     try {
-      final box = await Hive.openBox<Transaction>(_transactionBoxName);
-      await box.put(transaction.id, transaction);
+      final box = Hive.box<Order>(_orderBoxName);
+      await box.put(order.id, order);
     } catch (e) {
-      debugPrint('Error adding transaction: $e');
-      throw Exception('Failed to add transaction: $e');
+      debugPrint('Error adding order: $e');
+      throw Exception('Failed to add order: $e');
     }
   }
 
-  // Get all transactions
-  static Future<List<Transaction>> getAllTransactions() async {
+  static Future<List<Order>> getAllOrders() async {
     try {
-      final box = await Hive.openBox<Transaction>(_transactionBoxName);
+      final box = Hive.box<Order>(_orderBoxName);
       return box.values.toList();
     } catch (e) {
-      debugPrint('Error getting all transactions: $e');
+      debugPrint('Error getting all orders: $e');
       return [];
     }
   }
 
-  // Delete a transaction
-  static Future<void> deleteTransaction(String id) async {
+  static Future<void> deleteOrder(String id) async {
     try {
-      final box = await Hive.openBox<Transaction>(_transactionBoxName);
+      final box = Hive.box<Order>(_orderBoxName);
       await box.delete(id);
     } catch (e) {
-      debugPrint('Error deleting transaction: $e');
-      throw Exception('Failed to delete transaction: $e');
+      debugPrint('Error deleting order: $e');
+      throw Exception('Failed to delete order: $e');
     }
   }
 
-  // Update transaction status
-  static Future<void> updateTransactionStatus(
+  static Future<void> updateOrderStatus(
     String id,
-    TransactionStatus status,
+    String status,
   ) async {
     try {
-      final box = await Hive.openBox<Transaction>(_transactionBoxName);
-      final transaction = box.get(id);
-      if (transaction != null) {
-        final updatedTransaction = transaction.copyWith(status: status);
-        await box.put(id, updatedTransaction);
+      final box = Hive.box<Order>(_orderBoxName);
+      final order = box.get(id);
+      if (order != null) {
+        final updatedOrder = Order(
+          id: order.id,
+          customerName: order.customerName,
+          products: order.products,
+          total: order.total,
+          date: order.date,
+          templateId: order.templateId,
+          status: status,
+        );
+        await box.put(id, updatedOrder);
       }
     } catch (e) {
-      debugPrint('Error updating transaction status: $e');
-      throw Exception('Failed to update transaction status: $e');
+      debugPrint('Error updating order status: $e');
+      throw Exception('Failed to update order status: $e');
     }
   }
 }

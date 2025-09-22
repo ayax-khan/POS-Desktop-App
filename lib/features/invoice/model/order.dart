@@ -22,6 +22,9 @@ class Order {
   @HiveField(5)
   final int? templateId; // Added to store selected template ID
 
+  @HiveField(6)
+  final String status; // NEW: Add status ('completed', 'refunded', etc.)
+
   Order({
     required this.id,
     required this.customerName,
@@ -29,5 +32,6 @@ class Order {
     required this.total,
     required this.date,
     this.templateId, // Make it optional
+    this.status = 'completed', // Default to 'completed'
   });
 }

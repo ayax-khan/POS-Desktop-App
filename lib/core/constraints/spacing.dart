@@ -20,12 +20,20 @@ class AppSpacing {
     return all(context, 0.005);
   }
 
-  static double small(BuildContext context) {
-    return all(context, 0.01);
+  static double small([BuildContext? context]) {
+    if (context != null) {
+      return all(context, 0.01); // responsive based on context
+    } else {
+      return 8.0; // fallback if context not available
+    }
   }
 
-  static double medium(BuildContext context) {
-    return all(context, 0.015);
+  static double medium([BuildContext? context]) {
+    if (context != null) {
+      return all(context, 0.015);
+    } else {
+      return 16.0;
+    }
   }
 
   static double large(BuildContext context) {
@@ -34,5 +42,18 @@ class AppSpacing {
 
   static double extraLarge(BuildContext context) {
     return all(context, 0.025);
+  }
+
+  // Responsive spacing based on screen size
+  static double responsive(
+    BuildContext context, {
+    required double mobile,
+    required double tablet,
+    required double desktop,
+  }) {
+    final width = MediaQuery.of(context).size.width;
+    if (width < 600) return mobile;
+    if (width < 1200) return tablet;
+    return desktop;
   }
 }

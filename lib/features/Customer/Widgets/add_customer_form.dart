@@ -123,26 +123,25 @@ class _AddCustomerFormState extends State<AddCustomerForm> {
               ),
               SizedBox(height: AppSpacing.height(context, 0.015)),
               DropdownButtonFormField<String>(
-                initialValue: _selectedGroup,
-                decoration: const InputDecoration(labelText: 'Group'),
-                items:
-                    <String>[
-                      'All customers',
-                      'VIP',
-                      'New',
-                      'Regular',
-                    ].map<DropdownMenuItem<String>>((String value) {
-                      return DropdownMenuItem<String>(
-                        value: value,
-                        child: Text(value),
-                      );
-                    }).toList(),
-                onChanged: (String? newValue) {
-                  setState(() {
-                    _selectedGroup = newValue!;
-                  });
-                },
-              ),
+  value: _selectedGroup, // <-- corrected
+  decoration: const InputDecoration(labelText: 'Group'),
+  items: <String>[
+    'All customers',
+    'VIP',
+    'New',
+    'Regular',
+  ].map<DropdownMenuItem<String>>((String value) {
+    return DropdownMenuItem<String>(
+      value: value,
+      child: Text(value),
+    );
+  }).toList(),
+  onChanged: (String? newValue) {
+    setState(() {
+      _selectedGroup = newValue!;
+    });
+  },
+),
               SizedBox(height: AppSpacing.height(context, 0.015)),
               TextFormField(
                 controller: _notesController,
