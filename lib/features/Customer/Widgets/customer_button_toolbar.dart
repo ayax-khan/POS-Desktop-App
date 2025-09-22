@@ -35,6 +35,7 @@ class CustomerButtonToolbar extends StatelessWidget {
           const SizedBox(width: 24),
           _buildToolbarButton(
             label: 'Delete',
+
             icon: Icons.delete_outline,
             onPressed: onDelete,
           ),

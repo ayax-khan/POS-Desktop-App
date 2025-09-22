@@ -49,6 +49,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
       _loadRevenueData();
     } catch (e) {
       setState(() {
+        // _revenueData=Data;
         _isLoading = false;
       });
       _showErrorMessage('Error initializing reports: $e');
@@ -65,10 +66,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
         startDate: _startDate,
         endDate: _endDate,
       );
-      setState() {
+      setState(() {
+        // Fixed: Added outer parentheses for method call
         _revenueData = data;
         _isLoading = false;
-      };
+      });
     } catch (e) {
       setState(() {
         _isLoading = false;
@@ -152,7 +154,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   ),
                 ),
               )
-
             // Data available
             else if (_revenueData != null)
               Expanded(
@@ -168,7 +169,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   ),
                 ),
               )
-
             // No data
             else
               Expanded(
@@ -226,22 +226,22 @@ class _ReportsScreenState extends State<ReportsScreen> {
       child: DropdownButton<String>(
         value: _selectedPeriod,
         underline: SizedBox(),
-        items: _periods.map((period) {
-          final displayText = period == 'Custom'
-              ? _getCustomDateRangeText()
-              : period;
-          return DropdownMenuItem<String>(
-            value: period,
-            child: Text(
-              displayText,
-              style: TextStyle(
-                color: Colors.grey.shade700,
-                fontWeight: FontWeight.w500,
-                fontSize: 14,
-              ),
-            ),
-          );
-        }).toList(),
+        items:
+            _periods.map((period) {
+              final displayText =
+                  period == 'Custom' ? _getCustomDateRangeText() : period;
+              return DropdownMenuItem<String>(
+                value: period,
+                child: Text(
+                  displayText,
+                  style: TextStyle(
+                    color: Colors.grey.shade700,
+                    fontWeight: FontWeight.w500,
+                    fontSize: 14,
+                  ),
+                ),
+              );
+            }).toList(),
         onChanged: (String? newValue) {
           if (newValue != null) {
             _onPeriodSelected(newValue);
@@ -275,9 +275,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
         context: context,
         firstDate: DateTime(2000),
         lastDate: DateTime.now(),
-        initialDateRange: _startDate != null && _endDate != null
-            ? DateTimeRange(start: _startDate!, end: _endDate!)
-            : null,
+        initialDateRange:
+            _startDate != null && _endDate != null
+                ? DateTimeRange(start: _startDate!, end: _endDate!)
+                : null,
         builder: (context, child) {
           return Theme(
             data: Theme.of(context).copyWith(
