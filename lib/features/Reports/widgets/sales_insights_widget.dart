@@ -1,6 +1,5 @@
 // lib/features/Reports/Widgets/sales_insights_widget.dart
 import 'package:flutter/material.dart';
-import 'package:pos/core/constraints/colors.dart';
 import 'package:pos/core/constraints/fonts.dart';
 import 'package:pos/core/constraints/spacing.dart';
 

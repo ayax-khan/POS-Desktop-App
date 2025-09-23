@@ -1,6 +1,5 @@
 // lib/features/Reports/Widgets/top_customers_widget.dart
 import 'package:flutter/material.dart';
-import 'package:pos/core/constraints/colors.dart';
 import 'package:pos/core/constraints/fonts.dart';
 import 'package:pos/core/constraints/spacing.dart';
 import 'package:pos/features/Reports/Models/revenue_data.dart';

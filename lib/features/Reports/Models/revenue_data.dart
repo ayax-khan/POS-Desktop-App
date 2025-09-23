@@ -16,7 +16,7 @@ class RevenueData {
   final List<ChartDataPoint> chartData;
   final List<ChartDataPoint> visitorsData;
 
-  final List<ChartDataPoint> productsData; 
+  final List<ChartDataPoint> productsData;
   final List<TopCustomer> topCustomers;
   final List<TopProduct> topProducts;
   final List<HourlyRevenue> hourlyRevenue;
@@ -42,7 +42,7 @@ class RevenueData {
     required this.returnsWeekOverWeekChange,
     required this.chartData,
     required this.visitorsData,
-  
+
     required this.topCustomers,
     required this.topProducts,
     required this.hourlyRevenue,
@@ -56,8 +56,9 @@ class RevenueData {
 class ChartDataPoint {
   final DateTime date;
   final double value;
+  final String? label;
 
-  ChartDataPoint({required this.date, required this.value});
+  ChartDataPoint({required this.date, required this.value, this.label});
 }
 
 class TopCustomer {

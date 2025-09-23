@@ -11,9 +11,11 @@ import 'package:pos/features/invoice/model/order.dart'; // Import Order
 import 'package:ulid/ulid.dart';
 
 class ReportsService {
-  static const String _orderBoxName = 'ordersBox'; // Adjusted to match HiveService
+  static const String _orderBoxName =
+      'ordersBox'; // Adjusted to match HiveService
   static const String _customerBoxName = 'customers';
-  static const String _productBoxName = 'posBox'; // From HiveService, it's 'posBox' for products
+  static const String _productBoxName =
+      'posBox'; // From HiveService, it's 'posBox' for products
 
   // Initialize Hive and register adapters
   static Future<void> init() async {
@@ -64,7 +66,11 @@ class ReportsService {
       final totalRevenue = _calculateTotalRevenue(orders);
       final totalProducts = orders.fold<int>(0, (sum, o) {
         if (o.status == 'completed') {
-          return sum + o.products.fold<int>(0, (s, item) => s + (item['quantity'] as int));
+          return sum +
+              o.products.fold<int>(
+                0,
+                (s, item) => s + (item['quantity'] as int),
+              );
         }
         return sum;
       });
@@ -72,7 +78,8 @@ class ReportsService {
       final returnRate = _calculateReturnRate(orders);
 
       // Calculate previous period for comparison
-      final periodDays = calcEnd.difference(calcStart).inDays + 1; // Adjust for inclusive days
+      final periodDays =
+          calcEnd.difference(calcStart).inDays + 1; // Adjust for inclusive days
       final previousStart = calcStart.subtract(Duration(days: periodDays));
       final previousEnd = calcEnd.subtract(Duration(days: periodDays));
       final previousOrders = await _getOrders(previousStart, previousEnd);
@@ -81,7 +88,11 @@ class ReportsService {
       final previousRevenue = _calculateTotalRevenue(previousOrders);
       final previousProducts = previousOrders.fold<int>(0, (sum, o) {
         if (o.status == 'completed') {
-          return sum + o.products.fold<int>(0, (s, item) => s + (item['quantity'] as int));
+          return sum +
+              o.products.fold<int>(
+                0,
+                (s, item) => s + (item['quantity'] as int),
+              );
         }
         return sum;
       });
@@ -99,11 +110,16 @@ class ReportsService {
       final weekPreviousRevenue = _calculateTotalRevenue(weekPreviousOrders);
       final weekPreviousProducts = weekPreviousOrders.fold<int>(0, (sum, o) {
         if (o.status == 'completed') {
-          return sum + o.products.fold<int>(0, (s, item) => s + (item['quantity'] as int));
+          return sum +
+              o.products.fold<int>(
+                0,
+                (s, item) => s + (item['quantity'] as int),
+              );
         }
         return sum;
       });
-      final weekPreviousCustomers = _getUniqueCustomers(weekPreviousOrders).length;
+      final weekPreviousCustomers =
+          _getUniqueCustomers(weekPreviousOrders).length;
       final weekPreviousReturnRate = _calculateReturnRate(weekPreviousOrders);
 
       // Percentage changes
@@ -205,7 +221,6 @@ class ReportsService {
         peakSaleAmount: double.tryParse(peakSaleData['amount']!) ?? 0.0,
         lowStockCount: lowStockCount,
       );
-
     } catch (e) {
       debugPrint('Error getting revenue data: $e');
       return _getDefaultRevenueData();
@@ -236,12 +251,21 @@ class ReportsService {
         case 'Yesterday':
           final yesterday = now.subtract(const Duration(days: 1));
           calcStart = DateTime(yesterday.year, yesterday.month, yesterday.day);
-          calcEnd = DateTime(yesterday.year, yesterday.month, yesterday.day, 23, 59, 59);
+          calcEnd = DateTime(
+            yesterday.year,
+            yesterday.month,
+            yesterday.day,
+            23,
+            59,
+            59,
+          );
           break;
         case 'Last Week':
           final weekStart = now.subtract(Duration(days: now.weekday - 1 + 7));
           calcStart = DateTime(weekStart.year, weekStart.month, weekStart.day);
-          calcEnd = calcStart.add(const Duration(days: 6, hours: 23, minutes: 59, seconds: 59));
+          calcEnd = calcStart.add(
+            const Duration(days: 6, hours: 23, minutes: 59, seconds: 59),
+          );
           break;
         case 'Last Month':
           final lastMonth = DateTime(now.year, now.month - 1, 1);
@@ -274,13 +298,9 @@ class ReportsService {
       // Hourly data for today/yesterday
       final Map<int, double> hourRevenue = {};
       for (var o in orders) {
-        if (o.status == 'completed' && o.date != null) {
-          final hour = o.date!.hour;
-          hourRevenue.update(
-            hour,
-            (v) => v + o.total,
-            ifAbsent: () => o.total,
-          );
+        if (o.status == 'completed') {
+          final hour = o.date.hour;
+          hourRevenue.update(hour, (v) => v + o.total, ifAbsent: () => o.total);
         }
       }
       return hourRevenue.entries
@@ -294,17 +314,9 @@ class ReportsService {
       // Daily data for week/month/custom
       final Map<DateTime, double> dayRevenue = {};
       for (var o in orders) {
-        if (o.status == 'completed' && o.date != null) {
-          final day = DateTime(
-            o.date!.year,
-            o.date!.month,
-            o.date!.day,
-          );
-          dayRevenue.update(
-            day,
-            (v) => v + o.total,
-            ifAbsent: () => o.total,
-          );
+        if (o.status == 'completed') {
+          final day = DateTime(o.date.year, o.date.month, o.date.day);
+          dayRevenue.update(day, (v) => v + o.total, ifAbsent: () => o.total);
         }
       }
 
@@ -338,7 +350,7 @@ class ReportsService {
     if (isSingleDay) {
       final Map<int, Set<String>> hourVisitors = {};
       for (var o in orders) {
-        final hour = o.date!.hour;
+        final hour = o.date.hour;
         hourVisitors.update(
           hour,
           (s) => s..add(o.customerName),
@@ -357,11 +369,7 @@ class ReportsService {
     } else {
       final Map<DateTime, Set<String>> dayVisitors = {};
       for (var o in orders) {
-        final day = DateTime(
-          o.date!.year,
-          o.date!.month,
-          o.date!.day,
-        );
+        final day = DateTime(o.date.year, o.date.month, o.date.day);
         dayVisitors.update(
           day,
           (s) => s..add(o.customerName),
@@ -400,9 +408,12 @@ class ReportsService {
       // Hourly data for today/yesterday
       final Map<int, double> hourProducts = {};
       for (var o in orders) {
-        if (o.status == 'completed' && o.date != null) {
-          final hour = o.date!.hour;
-          final qty = o.products.fold(0, (sum, item) => sum + (item['quantity'] as int));
+        if (o.status == 'completed') {
+          final hour = o.date.hour;
+          final qty = o.products.fold(
+            0,
+            (sum, item) => sum + (item['quantity'] as int),
+          );
           hourProducts.update(
             hour,
             (v) => v + qty.toDouble(),
@@ -421,13 +432,12 @@ class ReportsService {
       // Daily data for week/month/custom
       final Map<DateTime, double> dayProducts = {};
       for (var o in orders) {
-        if (o.status == 'completed' && o.date != null) {
-          final day = DateTime(
-            o.date!.year,
-            o.date!.month,
-            o.date!.day,
+        if (o.status == 'completed') {
+          final day = DateTime(o.date.year, o.date.month, o.date.day);
+          final qty = o.products.fold(
+            0,
+            (sum, item) => sum + (item['quantity'] as int),
           );
-          final qty = o.products.fold(0, (sum, item) => sum + (item['quantity'] as int));
           dayProducts.update(
             day,
             (v) => v + qty.toDouble(),
@@ -475,13 +485,9 @@ class ReportsService {
   ) {
     final Map<int, double> hourMap = {};
     for (var o in orders) {
-      if (o.status == 'completed' && o.date != null) {
-        final h = o.date!.hour;
-        hourMap.update(
-          h,
-          (v) => v + o.total,
-          ifAbsent: () => o.total,
-        );
+      if (o.status == 'completed') {
+        final h = o.date.hour;
+        hourMap.update(h, (v) => v + o.total, ifAbsent: () => o.total);
       }
     }
 
@@ -505,17 +511,9 @@ class ReportsService {
   ) {
     final Map<DateTime, double> dayMap = {};
     for (var o in orders) {
-      if (o.status == 'completed' && o.date != null) {
-        final day = DateTime(
-          o.date!.year,
-          o.date!.month,
-          o.date!.day,
-        );
-        dayMap.update(
-          day,
-          (v) => v + o.total,
-          ifAbsent: () => o.total,
-        );
+      if (o.status == 'completed') {
+        final day = DateTime(o.date.year, o.date.month, o.date.day);
+        dayMap.update(day, (v) => v + o.total, ifAbsent: () => o.total);
       }
     }
 
@@ -543,13 +541,9 @@ class ReportsService {
   ) {
     final Map<int, double> weekMap = {};
     for (var o in orders) {
-      if (o.status == 'completed' && o.date != null) {
-        final weekNumber = ((o.date!.difference(start).inDays) / 7).floor();
-        weekMap.update(
-          weekNumber,
-          (v) => v + o.total,
-          ifAbsent: () => o.total,
-        );
+      if (o.status == 'completed') {
+        final weekNumber = ((o.date.difference(start).inDays) / 7).floor();
+        weekMap.update(weekNumber, (v) => v + o.total, ifAbsent: () => o.total);
       }
     }
 
@@ -566,16 +560,11 @@ class ReportsService {
   }
 
   // Helper methods (keeping existing ones)
-  static Future<List<Order>> _getOrders(
-    DateTime start,
-    DateTime end,
-  ) async {
+  static Future<List<Order>> _getOrders(DateTime start, DateTime end) async {
     try {
       final box = Hive.box<Order>(_orderBoxName);
       return box.values
-          .where(
-            (o) => o.date != null && !o.date!.isBefore(start) && !o.date!.isAfter(end),
-          )
+          .where((o) => !o.date.isBefore(start) && !o.date.isAfter(end))
           .toList();
     } catch (e) {
       debugPrint('Error getting orders: $e');
@@ -653,14 +642,7 @@ class ReportsService {
           ..sort((a, b) => b.value.compareTo(a.value));
     final top5 = sorted.take(5);
     // Since customer IDs are not in Order, use name directly; if needed, match name to customer box
-    return top5
-        .map(
-          (e) => TopCustomer(
-            name: e.key,
-            amount: e.value,
-          ),
-        )
-        .toList();
+    return top5.map((e) => TopCustomer(name: e.key, amount: e.value)).toList();
   }
 
   static List<TopProduct> _getTopProducts(
@@ -702,25 +684,14 @@ class ReportsService {
     }).toList();
   }
 
-  static String _getBestSalesDay(
-    List<Order> orders,
-    String period,
-  ) {
+  static String _getBestSalesDay(List<Order> orders, String period) {
     if (orders.isEmpty) return 'N/A';
 
     final Map<DateTime, double> dayMap = {};
     for (var o in orders) {
-      if (o.status == 'completed' && o.date != null) {
-        final day = DateTime(
-          o.date!.year,
-          o.date!.month,
-          o.date!.day,
-        );
-        dayMap.update(
-          day,
-          (v) => v + o.total,
-          ifAbsent: () => o.total,
-        );
+      if (o.status == 'completed') {
+        final day = DateTime(o.date.year, o.date.month, o.date.day);
+        dayMap.update(day, (v) => v + o.total, ifAbsent: () => o.total);
       }
     }
 
@@ -748,13 +719,9 @@ class ReportsService {
   static Map<String, String> _getPeakSaleHour(List<Order> orders) {
     final Map<int, double> hourMap = {};
     for (var o in orders) {
-      if (o.status == 'completed' && o.date != null) {
-        final h = o.date!.hour;
-        hourMap.update(
-          h,
-          (v) => v + o.total,
-          ifAbsent: () => o.total,
-        );
+      if (o.status == 'completed') {
+        final h = o.date.hour;
+        hourMap.update(h, (v) => v + o.total, ifAbsent: () => o.total);
       }
     }
 
@@ -1135,10 +1102,7 @@ class ReportsService {
     }
   }
 
-  static Future<void> updateOrderStatus(
-    String id,
-    String status,
-  ) async {
+  static Future<void> updateOrderStatus(String id, String status) async {
     try {
       final box = Hive.box<Order>(_orderBoxName);
       final order = box.get(id);
