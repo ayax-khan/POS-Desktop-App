@@ -25,12 +25,13 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
   double _totalAmount = 0.0;
   bool _isLoading = true;
   String _orderNumber = "";
-  int? _selectedTemplateId; // Added to store selected template ID
+  int? _selectedTemplateId;
+  final FocusNode _searchFocusNode = FocusNode();
 
   @override
   void initState() {
     super.initState();
-    _selectedTemplateId = widget.selectedTemplate ?? 0; // Initialize with selected template or default to 0
+    _selectedTemplateId = widget.selectedTemplate ?? 0;
     _loadDraftOrder();
     _generateOrderNumber();
   }
@@ -38,7 +39,6 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
   @override
   void didUpdateWidget(CreateOrderScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Update selected template when widget updates
     if (oldWidget.selectedTemplate != widget.selectedTemplate) {
       setState(() {
         _selectedTemplateId = widget.selectedTemplate ?? 0;
@@ -49,6 +49,7 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
   @override
   void dispose() {
     _saveDraftOrder();
+    _searchFocusNode.dispose();
     super.dispose();
   }
 
@@ -161,13 +162,12 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
       products: _selectedProducts,
       total: _totalAmount,
       date: DateTime.now(),
-      templateId: _selectedTemplateId, // Save selected template ID with the order
+      templateId: _selectedTemplateId,
     );
 
     await HiveService.saveOrder(order);
     await HiveService.clearDraftOrder();
 
-    // Show receipt dialog
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -210,7 +210,7 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
       case 3:
         return ReceiptTemplate4(order: order);
       default:
-        return ReceiptTemplate1(order: order); // Default to template 1
+        return ReceiptTemplate1(order: order);
     }
   }
 
@@ -257,9 +257,6 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
                           FocusNode focusNode,
                           VoidCallback onFieldSubmitted,
                         ) {
-                          _searchController.text =
-                              textEditingController
-                                  .text; // Keep our controller in sync
                           return TextField(
                             controller: textEditingController,
                             focusNode: focusNode,
@@ -273,12 +270,147 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
                             ),
                             onSubmitted: (value) {
                               onFieldSubmitted();
+                              textEditingController.clear();
+                              FocusScope.of(context).requestFocus(focusNode);
                             },
+                          );
+                        },
+                        optionsViewBuilder: (
+                          BuildContext context,
+                          AutocompleteOnSelected<Product> onSelected,
+                          Iterable<Product> options,
+                        ) {
+                          return Align(
+                            alignment: Alignment.topLeft,
+                            child: Material(
+                              elevation: 4.0,
+                              child: Container(
+                                width: MediaQuery.of(context).size.width * 0.4,
+                                constraints: BoxConstraints(maxHeight: 200),
+                                child: ListView.builder(
+                                  padding: EdgeInsets.zero,
+                                  shrinkWrap: true,
+                                  itemCount: options.length,
+                                  itemBuilder: (
+                                    BuildContext context,
+                                    int index,
+                                  ) {
+                                    final Product product = options.elementAt(
+                                      index,
+                                    );
+                                    return InkWell(
+                                      onTap: () {
+                                        onSelected(product);
+                                        _searchController.clear();
+                                        FocusScope.of(
+                                          context,
+                                        ).requestFocus(_searchFocusNode);
+                                      },
+                                      child: Container(
+                                        padding: EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          border: Border(
+                                            bottom: BorderSide(
+                                              color: Colors.grey.shade300,
+                                            ),
+                                          ),
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            SizedBox(height: 8),
+                                            Row(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Expanded(
+                                                  child: Column(
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
+                                                    children: [
+                                                      Row(
+                                                        children: [
+                                                          Icon(
+                                                            Icons.inventory_2,
+                                                            size: 15,
+                                                            color: Colors.blue,
+                                                          ),
+                                                          SizedBox(width: 10),
+                                                          Text(
+                                                            product.name,
+                                                            style: TextStyle(
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold,
+                                                              fontSize: 14,
+                                                              color:
+                                                                  Colors.blue,
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                      SizedBox(height: 4),
+                                                      RichText(
+                                                        text: TextSpan(
+                                                          style: TextStyle(
+                                                            fontSize: 12,
+                                                            color:
+                                                                Colors
+                                                                    .grey
+                                                                    .shade700,
+                                                          ),
+                                                          children: [
+                                                            TextSpan(
+                                                              text:
+                                                                  'SKU: ${product.sku ?? 'N/A'}',
+                                                            ),
+                                                            TextSpan(
+                                                              text: ' | ',
+                                                            ),
+                                                            TextSpan(
+                                                              text:
+                                                                  'Stock: ${product.stockQuantity}',
+                                                            ),
+                                                            TextSpan(
+                                                              text: ' | ',
+                                                            ),
+                                                            TextSpan(
+                                                              text:
+                                                                  'Price: \$${product.sellingPrice.toStringAsFixed(2)}',
+                                                              style: TextStyle(
+                                                                color:
+                                                                    Colors
+                                                                        .green
+                                                                        .shade700,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .bold,
+                                                              ),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ),
                           );
                         },
                         onSelected: (Product selection) {
                           _addProduct(selection);
                           _searchController.clear();
+                          FocusScope.of(context).requestFocus(_searchFocusNode);
                         },
                       ),
                     ),
@@ -317,7 +449,10 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
                           borderRadius: BorderRadius.circular(8),
                         ),
                       ),
-                      child: Text('Add Customer'),
+                      child: Text(
+                        'Add Customer',
+                        style: TextStyle(color: Colors.white),
+                      ),
                     ),
                   ],
                 ),
@@ -414,12 +549,14 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
                           borderRadius: BorderRadius.circular(8),
                         ),
                       ),
-                      child: Text('Save'),
+                      child: Text(
+                        'Save',
+                        style: TextStyle(color: Colors.white),
+                      ),
                     ),
                     SizedBox(width: AppSpacing.medium(context)),
                     ElevatedButton(
                       onPressed: () {
-                        // Placeholder for print logic
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text(
@@ -434,7 +571,10 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
                           borderRadius: BorderRadius.circular(8),
                         ),
                       ),
-                      child: Text('Print'),
+                      child: Text(
+                        'Print',
+                        style: TextStyle(color: Colors.white),
+                      ),
                     ),
                   ],
                 ),

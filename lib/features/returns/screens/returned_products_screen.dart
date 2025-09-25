@@ -21,7 +21,7 @@ class _ReturnedProductsScreenState extends State<ReturnedProductsScreen> {
 
   final List<String> _filterOptions = [
     'Today',
-    'Yesterday', 
+    'Yesterday',
     'Last Week',
     'Last Month',
     'Custom Date',
@@ -36,19 +36,33 @@ class _ReturnedProductsScreenState extends State<ReturnedProductsScreen> {
 
   Future<void> _loadReturnedProducts() async {
     setState(() => _isLoading = true);
-    
+
     try {
       List<ReturnedProduct> products;
-      
+
       switch (_selectedFilter) {
         case 'Today':
           products = await ReturnsService.getTodayReturns();
           break;
         case 'Yesterday':
           final yesterday = DateTime.now().subtract(const Duration(days: 1));
-          final startOfDay = DateTime(yesterday.year, yesterday.month, yesterday.day);
-          final endOfDay = DateTime(yesterday.year, yesterday.month, yesterday.day, 23, 59, 59);
-          products = await ReturnsService.getReturnsByDateRange(startOfDay, endOfDay);
+          final startOfDay = DateTime(
+            yesterday.year,
+            yesterday.month,
+            yesterday.day,
+          );
+          final endOfDay = DateTime(
+            yesterday.year,
+            yesterday.month,
+            yesterday.day,
+            23,
+            59,
+            59,
+          );
+          products = await ReturnsService.getReturnsByDateRange(
+            startOfDay,
+            endOfDay,
+          );
           break;
         case 'Last Week':
           products = await ReturnsService.getLastWeekReturns();
@@ -59,7 +73,7 @@ class _ReturnedProductsScreenState extends State<ReturnedProductsScreen> {
         default:
           products = await ReturnsService.getAllReturns();
       }
-      
+
       setState(() {
         _returnedProducts = products;
         _isLoading = false;
@@ -93,13 +107,13 @@ class _ReturnedProductsScreenState extends State<ReturnedProductsScreen> {
 
     if (picked != null) {
       setState(() => _isLoading = true);
-      
+
       try {
         final products = await ReturnsService.getReturnsByDateRange(
           picked.start,
           picked.end,
         );
-        
+
         setState(() {
           _returnedProducts = products;
           _selectedFilter = 'Custom Date';
@@ -159,7 +173,12 @@ class _ReturnedProductsScreenState extends State<ReturnedProductsScreen> {
     );
   }
 
-  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
+  Widget _buildStatCard(
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -219,12 +238,13 @@ class _ReturnedProductsScreenState extends State<ReturnedProductsScreen> {
         child: DropdownButton<String>(
           value: _selectedFilter,
           icon: const Icon(Icons.arrow_drop_down),
-          items: _filterOptions.map((String value) {
-            return DropdownMenuItem<String>(
-              value: value,
-              child: Text(value),
-            );
-          }).toList(),
+          items:
+              _filterOptions.map((String value) {
+                return DropdownMenuItem<String>(
+                  value: value,
+                  child: Text(value),
+                );
+              }).toList(),
           onChanged: (String? newValue) {
             if (newValue != null) {
               setState(() => _selectedFilter = newValue);
@@ -242,9 +262,7 @@ class _ReturnedProductsScreenState extends State<ReturnedProductsScreen> {
 
   Widget _buildReturnsList() {
     if (_isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
+      return const Center(child: CircularProgressIndicator());
     }
 
     if (_returnedProducts.isEmpty) {
@@ -260,18 +278,12 @@ class _ReturnedProductsScreenState extends State<ReturnedProductsScreen> {
             const SizedBox(height: 16),
             Text(
               'No returns found for $_selectedFilter',
-              style: TextStyle(
-                fontSize: 18,
-                color: Colors.grey.shade600,
-              ),
+              style: TextStyle(fontSize: 18, color: Colors.grey.shade600),
             ),
             const SizedBox(height: 8),
             Text(
               'Returns will appear here when products are returned',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey.shade500,
-              ),
+              style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
             ),
           ],
         ),
@@ -324,19 +336,59 @@ class _ReturnedProductsScreenState extends State<ReturnedProductsScreen> {
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: Colors.blue.shade50,
-              border: Border(
-                bottom: BorderSide(color: Colors.grey.shade200),
-              ),
+              border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
             ),
             child: const Row(
               children: [
-                Expanded(flex: 2, child: Text('Product', style: TextStyle(fontWeight: FontWeight.bold))),
-                Expanded(flex: 1, child: Text('SKU', style: TextStyle(fontWeight: FontWeight.bold))),
-                Expanded(flex: 1, child: Text('Qty', style: TextStyle(fontWeight: FontWeight.bold))),
-                Expanded(flex: 1, child: Text('Amount', style: TextStyle(fontWeight: FontWeight.bold))),
-                Expanded(flex: 2, child: Text('Reason', style: TextStyle(fontWeight: FontWeight.bold))),
-                Expanded(flex: 1, child: Text('Date', style: TextStyle(fontWeight: FontWeight.bold))),
-                Expanded(flex: 1, child: Text('Status', style: TextStyle(fontWeight: FontWeight.bold))),
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    'Product',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+                Expanded(
+                  flex: 1,
+                  child: Text(
+                    'SKU',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+                Expanded(
+                  flex: 1,
+                  child: Text(
+                    'Qty',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+                Expanded(
+                  flex: 1,
+                  child: Text(
+                    'Amount',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    'Reason',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+                Expanded(
+                  flex: 1,
+                  child: Text(
+                    'Date',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+                Expanded(
+                  flex: 1,
+                  child: Text(
+                    'Status',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
               ],
             ),
           ),
@@ -347,7 +399,7 @@ class _ReturnedProductsScreenState extends State<ReturnedProductsScreen> {
               itemBuilder: (context, index) {
                 final returnItem = _returnedProducts[index];
                 final isEven = index % 2 == 0;
-                
+
                 return Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
@@ -365,7 +417,9 @@ class _ReturnedProductsScreenState extends State<ReturnedProductsScreen> {
                           children: [
                             Text(
                               returnItem.productName,
-                              style: const TextStyle(fontWeight: FontWeight.w500),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
                             if (returnItem.customerName != null)
                               Text(
@@ -388,7 +442,9 @@ class _ReturnedProductsScreenState extends State<ReturnedProductsScreen> {
                       ),
                       Expanded(
                         flex: 1,
-                        child: Text('\$${returnItem.totalAmount.toStringAsFixed(2)}'),
+                        child: Text(
+                          '\$${returnItem.totalAmount.toStringAsFixed(2)}',
+                        ),
                       ),
                       Expanded(
                         flex: 2,
@@ -409,11 +465,16 @@ class _ReturnedProductsScreenState extends State<ReturnedProductsScreen> {
                       Expanded(
                         flex: 1,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
                             color: returnItem.status.color.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: returnItem.status.color.withOpacity(0.3)),
+                            border: Border.all(
+                              color: returnItem.status.color.withOpacity(0.3),
+                            ),
                           ),
                           child: Text(
                             returnItem.status.displayName,
@@ -455,4 +516,3 @@ class _ReturnedProductsScreenState extends State<ReturnedProductsScreen> {
     );
   }
 }
-
