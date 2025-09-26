@@ -48,11 +48,12 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
         // Apply low stock filter if enabled
         if (_showLowStock) {
-          products = products.where((product) {
-            // Check if reorderLevel is set and stockQuantity is below it
-            return product.reorderLevel != null &&
-                product.stockQuantity < product.reorderLevel!;
-          }).toList();
+          products =
+              products.where((product) {
+                // Check if reorderLevel is set and stockQuantity is below it
+                return product.reorderLevel != null &&
+                    product.stockQuantity < product.reorderLevel!;
+              }).toList();
         }
 
         _filteredProducts = products;
@@ -78,88 +79,96 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Return Product: ${product.name}'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: quantityController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Quantity to Return',
-                  border: OutlineInputBorder(),
-                ),
+      builder:
+          (context) => AlertDialog(
+            title: Text('Return Product: ${product.name}'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: quantityController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Quantity to Return',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: reasonController,
+                    decoration: const InputDecoration(
+                      labelText: 'Return Reason',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: customerController,
+                    decoration: const InputDecoration(
+                      labelText: 'Customer Name (Optional)',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: reasonController,
-                decoration: const InputDecoration(
-                  labelText: 'Return Reason',
-                  border: OutlineInputBorder(),
-                ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
               ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: customerController,
-                decoration: const InputDecoration(
-                  labelText: 'Customer Name (Optional)',
-                  border: OutlineInputBorder(),
-                ),
+              ElevatedButton(
+                onPressed: () async {
+                  final quantity = int.tryParse(quantityController.text) ?? 0;
+                  if (quantity > 0 && reasonController.text.isNotEmpty) {
+                    final success = await ReturnsService.processReturn(
+                      productId: product.id,
+                      quantityToReturn: quantity,
+                      reason: reasonController.text,
+                      customerName:
+                          customerController.text.isEmpty
+                              ? null
+                              : customerController.text,
+                    );
+
+                    Navigator.pop(context);
+
+                    if (success) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Product return processed successfully!',
+                          ),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                      _refreshProductList();
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Failed to process return. Please try again.',
+                          ),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Please enter valid quantity and reason.',
+                        ),
+                        backgroundColor: Colors.orange,
+                      ),
+                    );
+                  }
+                },
+                child: const Text('Process Return'),
               ),
             ],
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final quantity = int.tryParse(quantityController.text) ?? 0;
-              if (quantity > 0 && reasonController.text.isNotEmpty) {
-                final success = await ReturnsService.processReturn(
-                  productId: product.id,
-                  quantityToReturn: quantity,
-                  reason: reasonController.text,
-                  customerName: customerController.text.isEmpty 
-                      ? null 
-                      : customerController.text,
-                );
-
-                Navigator.pop(context);
-                
-                if (success) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Product return processed successfully!'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                  _refreshProductList();
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Failed to process return. Please try again.'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Please enter valid quantity and reason.'),
-                    backgroundColor: Colors.orange,
-                  ),
-                );
-              }
-            },
-            child: const Text('Process Return'),
-          ),
-        ],
-      ),
     );
   }
 
@@ -217,23 +226,10 @@ class _ProductsScreenState extends State<ProductsScreen> {
                       runSpacing: AppSpacing.small(context),
                       children: [
                         ProductButtonToolbar(
-                          // onView: () {
-                          //   ScaffoldMessenger.of(context).showSnackBar(
-                          //     const SnackBar(content: Text('View clicked')),
-                          //   );
-                          // },
-                          // onSearch: () {},
                           onRefresh: _refreshProductList,
                           onExport: () async {
                             await ExportService.exportToExcel(context);
                           },
-                          // onBulkUpload: () {
-                          //   ScaffoldMessenger.of(context).showSnackBar(
-                          //     const SnackBar(
-                          //       content: Text('Bulk Upload clicked'),
-                          //     ),
-                          //   );
-                          // },
                           onImportExcel: _importExcel,
                           onBarcodePrint: () {
                             ScaffoldMessenger.of(context).showSnackBar(
@@ -252,7 +248,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   ElevatedButton(
                     onPressed: _toggleReturnMode,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: _isReturnMode ? Colors.red : Colors.orange,
+                      backgroundColor:
+                          _isReturnMode ? Colors.red : Colors.orange,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
@@ -304,8 +301,13 @@ class _ProductsScreenState extends State<ProductsScreen> {
             child: TextField(
               controller: _searchQueryController,
               decoration: InputDecoration(
-                labelText: _isReturnMode ? 'Search by SKU or Name for Return' : 'Search',
-                prefixIcon: Icon(_isReturnMode ? Icons.assignment_return : Icons.search),
+                labelText:
+                    _isReturnMode
+                        ? 'Search by SKU or Name for Return'
+                        : 'Search',
+                prefixIcon: Icon(
+                  _isReturnMode ? Icons.assignment_return : Icons.search,
+                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -319,7 +321,9 @@ class _ProductsScreenState extends State<ProductsScreen> {
           if (_isReturnMode && _returnSearchResults.isNotEmpty)
             Container(
               height: 200,
-              margin: EdgeInsets.symmetric(horizontal: AppSpacing.small(context)),
+              margin: EdgeInsets.symmetric(
+                horizontal: AppSpacing.small(context),
+              ),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(8),
@@ -339,7 +343,10 @@ class _ProductsScreenState extends State<ProductsScreen> {
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.assignment_return, color: Colors.orange),
+                        const Icon(
+                          Icons.assignment_return,
+                          color: Colors.orange,
+                        ),
                         const SizedBox(width: 8),
                         Text(
                           'Products Found for Return (${_returnSearchResults.length})',
@@ -357,7 +364,10 @@ class _ProductsScreenState extends State<ProductsScreen> {
                       itemBuilder: (context, index) {
                         final product = _returnSearchResults[index];
                         return ListTile(
-                          leading: const Icon(Icons.inventory, color: Colors.grey),
+                          leading: const Icon(
+                            Icons.inventory,
+                            color: Colors.grey,
+                          ),
                           title: Text(product.name),
                           subtitle: Text(
                             'SKU: ${product.sku ?? 'N/A'} | Stock: ${product.stockQuantity} | Price: \$${product.sellingPrice.toStringAsFixed(2)}',
@@ -380,20 +390,18 @@ class _ProductsScreenState extends State<ProductsScreen> {
           if (_isReturnMode && _returnSearchResults.isNotEmpty)
             SizedBox(height: AppSpacing.medium(context)),
           Expanded(
-            child: _isReturnMode 
-                ? Container(
-                    padding: const EdgeInsets.all(20),
-                    child: const Center(
-                      child: Text(
-                        'Search for products above to process returns',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.grey,
+            child:
+                _isReturnMode
+                    ? Container(
+                      padding: const EdgeInsets.all(20),
+                      child: const Center(
+                        child: Text(
+                          'Search for products above to process returns',
+                          style: TextStyle(fontSize: 16, color: Colors.grey),
                         ),
                       ),
-                    ),
-                  )
-                : ProductTable(products: _filteredProducts),
+                    )
+                    : ProductTable(products: _filteredProducts),
           ),
         ],
       ),

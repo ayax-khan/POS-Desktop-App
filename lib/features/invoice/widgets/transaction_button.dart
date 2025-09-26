@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:pos/core/constants/receipt_dialog.dart';
 import 'package:pos/core/constraints/fonts.dart';
 import 'package:pos/core/constraints/spacing.dart';
 import 'package:pos/core/services/hive_service.dart';
 import 'package:pos/features/invoice/model/order.dart';
-import 'package:pos/features/invoice/receipt_templates/receipt_template_1.dart';
-import 'package:pos/features/invoice/receipt_templates/receipt_template_2.dart';
-import 'package:pos/features/invoice/receipt_templates/receipt_template_3.dart';
-import 'package:pos/features/invoice/receipt_templates/receipt_template_4.dart';
 
 class TransactionsScreen extends StatefulWidget {
   const TransactionsScreen({super.key});
@@ -37,7 +34,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     setState(() => _isLoading = false);
   }
 
-  void _viewReceipt(String orderId) {
+  void viewReceipt(String orderId) {
     final order = HiveService.getOrders().cast<Order?>().firstWhere(
       (o) => o?.id == orderId,
       orElse: () => null,
@@ -45,7 +42,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     if (order != null) {
       showDialog(
         context: context,
-        builder: (context) => _buildReceiptDialog(order),
+        builder: (context) => ReceiptDialog(order: order),
       );
     }
   }
@@ -79,60 +76,6 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Transaction deleted successfully!')),
       );
-    }
-  }
-
-  Widget _buildReceiptDialog(Order order) {
-    return AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      content: SingleChildScrollView(
-        child: Container(
-          width: MediaQuery.of(context).size.width * 0.7,
-          padding: EdgeInsets.all(AppSpacing.medium(context)),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Receipt - ${order.id}',
-                    style: AppFonts.appBarTitle.copyWith(
-                      fontSize: MediaQuery.of(context).size.width * 0.014,
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
-              ),
-              SizedBox(height: AppSpacing.medium(context)),
-              // Display receipt using saved template
-              _buildReceiptWithTemplate(order),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildReceiptWithTemplate(Order order) {
-    // Use saved template ID, default to template 1 if none saved
-    final templateId = order.templateId ?? 0;
-
-    switch (templateId) {
-      case 0:
-        return ReceiptTemplate1(order: order);
-      case 1:
-        return ReceiptTemplate2(order: order);
-      case 2:
-        return ReceiptTemplate3(order: order);
-      case 3:
-        return ReceiptTemplate4(order: order);
-      default:
-        return ReceiptTemplate1(order: order); // Default fallback
     }
   }
 
@@ -308,7 +251,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                                           color: Colors.blue,
                                         ),
                                         onPressed:
-                                            () => _viewReceipt(
+                                            () => viewReceipt(
                                               transaction['orderId'] as String,
                                             ),
                                       ),

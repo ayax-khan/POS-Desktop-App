@@ -1,15 +1,53 @@
-// lib/features/Home/widgets/recent_transactions_table.dart
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:pos/core/constants/receipt_dialog.dart';
+import 'package:pos/core/services/hive_service.dart';
 import 'package:pos/features/Home/Models/dashboard_data.dart';
+import 'package:pos/features/invoice/model/order.dart';
 
-class RecentTransactionsTable extends StatelessWidget {
+class RecentTransactionsTable extends StatefulWidget {
   final List<RecentTransaction> transactions;
 
   const RecentTransactionsTable({super.key, required this.transactions});
 
   @override
+  State<RecentTransactionsTable> createState() =>
+      _RecentTransactionsTableState();
+}
+
+class _RecentTransactionsTableState extends State<RecentTransactionsTable> {
+  int _currentPage = 0;
+  final int _itemsPerPage = 10;
+  bool _showAll = false;
+
+  void viewReceipt(BuildContext context, RecentTransaction transaction) {
+    final order = HiveService.getOrders().cast<Order?>().firstWhere(
+      (o) => o?.id == transaction.id,
+      orElse: () => null,
+    );
+    if (order != null) {
+      showDialog(
+        context: context,
+        builder: (context) => ReceiptDialog(order: order),
+      );
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final total = widget.transactions.length;
+    final displayedTransactions =
+        _showAll
+            ? widget.transactions
+            : widget.transactions
+                .skip(_currentPage * _itemsPerPage)
+                .take(_itemsPerPage)
+                .toList();
+    final start = _currentPage * _itemsPerPage + 1;
+    final end = min(start + _itemsPerPage - 1, total);
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -39,10 +77,34 @@ class RecentTransactionsTable extends StatelessWidget {
                     color: Colors.black87,
                   ),
                 ),
-                TextButton.icon(
-                  onPressed: () {},
-                  icon: const Icon(Icons.arrow_forward, size: 16),
-                  label: const Text('View All'),
+                Row(
+                  children: [
+                    if (!_showAll) ...[
+                      Text('$start-$end of $total'),
+                      IconButton(
+                        icon: const Icon(Icons.chevron_left, size: 16),
+                        onPressed:
+                            _currentPage > 0
+                                ? () => setState(() => _currentPage--)
+                                : null,
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.chevron_right, size: 16),
+                        onPressed:
+                            end < total
+                                ? () => setState(() => _currentPage++)
+                                : null,
+                      ),
+                    ],
+                    TextButton.icon(
+                      onPressed: () => setState(() => _showAll = !_showAll),
+                      icon: Icon(
+                        _showAll ? Icons.arrow_upward : Icons.arrow_forward,
+                        size: 16,
+                      ),
+                      label: Text(_showAll ? 'Collapse' : 'View All'),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -61,7 +123,7 @@ class RecentTransactionsTable extends StatelessWidget {
                 DataColumn(label: Text('Actions')),
               ],
               rows:
-                  transactions.map((transaction) {
+                  displayedTransactions.map((transaction) {
                     return DataRow(
                       cells: [
                         DataCell(
@@ -73,7 +135,7 @@ class RecentTransactionsTable extends StatelessWidget {
                         DataCell(Text(transaction.customerName)),
                         DataCell(
                           Text(
-                            '\${transaction.amount.toStringAsFixed(2)}',
+                            '\$${transaction.amount.toStringAsFixed(2)}',
                             style: const TextStyle(fontWeight: FontWeight.w600),
                           ),
                         ),
@@ -92,7 +154,8 @@ class RecentTransactionsTable extends StatelessWidget {
                                   Icons.visibility_outlined,
                                   size: 18,
                                 ),
-                                onPressed: () {},
+                                onPressed:
+                                    () => viewReceipt(context, transaction),
                                 tooltip: 'View',
                               ),
                               IconButton(

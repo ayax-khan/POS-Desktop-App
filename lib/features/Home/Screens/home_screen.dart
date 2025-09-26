@@ -42,6 +42,13 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
+  Future<void> _refreshDashboard() async {
+    await Future.wait([
+      _dashboardService.loadDashboardData(),
+      Future.delayed(const Duration(seconds: 1)),
+    ]);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -90,9 +97,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     actions: [
                       IconButton(
                         icon: const Icon(Icons.refresh, color: Colors.black87),
-                        onPressed: () async {
-                          await _dashboardService.refreshData();
-                          setState(() {});
+                        onPressed: () {
+                          setState(() {
+                            _initFuture = _refreshDashboard();
+                          });
                         },
                       ),
                       IconButton(

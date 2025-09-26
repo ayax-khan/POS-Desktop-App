@@ -234,7 +234,6 @@ class DashboardService {
                 DateTime.parse(b['date']).compareTo(DateTime.parse(a['date'])),
           );
     return transactions
-        .take(10)
         .map(
           (t) => RecentTransaction(
             id: t['orderId'] as String,

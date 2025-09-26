@@ -21,12 +21,6 @@ class ProductActions extends StatefulWidget {
 }
 
 class _ProductActionsState extends State<ProductActions> {
-  void _toggleFavorite(String id) {
-    HiveService.toggleFavorite(id).then((_) {
-      widget.onStateChanged();
-    });
-  }
-
   void _editProduct(Product product) {
     showDialog(
       context: context,
@@ -85,14 +79,6 @@ class _ProductActionsState extends State<ProductActions> {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        IconButton(
-          icon: Icon(
-            widget.product.favorite ? Icons.star : Icons.star_border,
-            size: MediaQuery.of(context).size.width * 0.015,
-            color: widget.product.favorite ? AppColors.primary : null,
-          ),
-          onPressed: () => _toggleFavorite(widget.product.id),
-        ),
         Spacer(),
         IconButton(
           icon: Icon(
